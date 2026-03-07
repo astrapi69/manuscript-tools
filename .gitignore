@@ -1,3 +1,18 @@
+##################
+# intellij files #
+##################
+*.iws
+*.iml
+*.ipr
+!.idea/runConfigurations
+.idea/inspectionProfiles
+.idea/libraries
+.idea/codeStyles
+.idea/shelf
+.idea/easycode
+.idea/dataSources
+.idea/*.*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

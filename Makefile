@@ -1,0 +1,114 @@
+.DEFAULT_GOAL := help
+SHELL := /bin/bash
+
+MANUSCRIPT ?= manuscript
+INCLUDE    ?= **/*.md
+EXCLUDE    ?=
+
+# Build exclude flags dynamically
+_EXCLUDE_FLAGS := $(foreach p,$(EXCLUDE),--exclude $(p))
+
+# ---------------------------------------------------------------------------
+# Setup
+# ---------------------------------------------------------------------------
+
+.PHONY: install
+install: ## Install project with all dependencies
+	poetry install
+
+.PHONY: install-dev
+install-dev: ## Install with dev dependencies
+	poetry install --with dev
+
+# ---------------------------------------------------------------------------
+# Manuscript tasks
+# ---------------------------------------------------------------------------
+
+.PHONY: check
+check: ## Run style checks on manuscript
+	poetry run ms-check $(MANUSCRIPT) --include '$(INCLUDE)' $(_EXCLUDE_FLAGS)
+
+.PHONY: sanitize
+sanitize: ## Sanitize manuscript files (in-place)
+	poetry run ms-sanitize $(MANUSCRIPT) --include '$(INCLUDE)' $(_EXCLUDE_FLAGS)
+
+.PHONY: sanitize-dry
+sanitize-dry: ## Sanitize dry-run (show changes without writing)
+	poetry run ms-sanitize $(MANUSCRIPT) --include '$(INCLUDE)' $(_EXCLUDE_FLAGS) --dry-run
+
+.PHONY: sanitize-backup
+sanitize-backup: ## Sanitize with .bak backup files
+	poetry run ms-sanitize $(MANUSCRIPT) --include '$(INCLUDE)' $(_EXCLUDE_FLAGS) --backup
+
+.PHONY: metrics
+metrics: ## Show word counts and text metrics
+	poetry run ms-metrics $(MANUSCRIPT) --include '$(INCLUDE)' $(_EXCLUDE_FLAGS)
+
+.PHONY: validate
+validate: sanitize-dry check ## Full validation pipeline (sanitize dry-run + style check)
+
+# ---------------------------------------------------------------------------
+# Development
+# ---------------------------------------------------------------------------
+
+.PHONY: test
+test: ## Run all tests
+	poetry run pytest
+
+.PHONY: test-v
+test-v: ## Run all tests (verbose)
+	poetry run pytest -v
+
+.PHONY: test-cov
+test-cov: ## Run tests with coverage report
+	poetry run pytest --cov=manuscript_tools --cov-report=term-missing
+
+.PHONY: lint
+lint: ## Run ruff linter
+	poetry run ruff check src/ tests/
+
+.PHONY: lint-fix
+lint-fix: ## Run ruff linter with auto-fix
+	poetry run ruff check src/ tests/ --fix
+
+.PHONY: format
+format: ## Format code with ruff
+	poetry run ruff format src/ tests/
+
+.PHONY: format-check
+format-check: ## Check formatting without changes
+	poetry run ruff format src/ tests/ --check
+
+.PHONY: ci
+ci: lint format-check test ## Full CI pipeline (lint + format-check + test)
+
+# ---------------------------------------------------------------------------
+# Cleanup
+# ---------------------------------------------------------------------------
+
+.PHONY: clean
+clean: ## Remove build artifacts and caches
+	rm -rf dist/ .pytest_cache/ .ruff_cache/ .coverage
+	find src/ tests/ -type d -name __pycache__ -exec rm -rf {} +
+	find . -name '*.pyc' -delete
+
+.PHONY: clean-bak
+clean-bak: ## Remove .bak files created by sanitize --backup
+	find $(MANUSCRIPT) -name '*.bak' -delete
+
+# ---------------------------------------------------------------------------
+# Build
+# ---------------------------------------------------------------------------
+
+.PHONY: build
+build: ## Build distribution package
+	poetry build
+
+# ---------------------------------------------------------------------------
+# Help
+# ---------------------------------------------------------------------------
+
+.PHONY: help
+help: ## Show this help
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
