@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Callable, Sequence
 
 from manuscript_tools.io import read_text
 from manuscript_tools.models import FileReport, StyleViolation
@@ -59,15 +59,14 @@ def rule_no_invisible_chars(text: str, path: Path) -> list[StyleViolation]:
 # Default rule set
 DEFAULT_RULES: list[StyleRule] = [rule_no_dashes, rule_no_invisible_chars]
 
-
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
 
 def check_file(
-        path: Path,
-        rules: Sequence[StyleRule] | None = None,
+    path: Path,
+    rules: Sequence[StyleRule] | None = None,
 ) -> FileReport:
     """Run all *rules* against a single file and return a report."""
     active_rules = rules if rules is not None else DEFAULT_RULES
@@ -88,8 +87,8 @@ def check_file(
 
 
 def check_files(
-        files: Sequence[Path],
-        rules: Sequence[StyleRule] | None = None,
+    files: Sequence[Path],
+    rules: Sequence[StyleRule] | None = None,
 ) -> list[FileReport]:
     """Run checks on multiple files."""
     return [check_file(f, rules=rules) for f in files]

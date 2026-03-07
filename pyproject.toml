@@ -4,27 +4,28 @@ version = "0.1.0"
 description = "Validation, sanitization and metrics for Markdown manuscripts."
 authors = ["Your Name <you@example.com>"]
 readme = "README.md"
+license = "BSD-3-Clause"
 packages = [{ include = "manuscript_tools", from = "src" }]
 
 [tool.poetry.scripts]
-ms-check = "manuscript_tools.cli:check"
+ms-check    = "manuscript_tools.cli:check"
 ms-sanitize = "manuscript_tools.cli:sanitize"
-ms-metrics = "manuscript_tools.cli:metrics"
+ms-metrics  = "manuscript_tools.cli:metrics"
 
 [tool.poetry.dependencies]
 python = "^3.11"
-ftfy = "^6.1"
+ftfy   = "^6.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0"
-ruff = "^0.4"
+ruff   = "^0.4"
 
 [tool.ruff]
 target-version = "py311"
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "UP", "B", "SIM", "TCH"]
+select = ["E", "F", "I", "N", "UP", "B", "SIM"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

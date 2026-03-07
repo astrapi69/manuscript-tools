@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# .githooks/commit-msg - Validates Conventional Commits format
+#
+# Install: git config core.hooksPath .githooks
+# Or:      make git-setup
+
+set -euo pipefail
+
+MSG_FILE="$1"
+MSG=$(head -1 "$MSG_FILE")
+
+# Skip merge commits
+if echo "$MSG" | grep -qE '^Merge '; then
+    exit 0
+fi
+
+PATTERN='^(feat|fix|docs|style|refactor|test|chore|perf)(\(.+\))?(!)?: .{1,72}$'
+
+if ! echo "$MSG" | grep -qE "$PATTERN"; then
+    echo "FEHLER: Commit-Message entspricht nicht dem Conventional Commits Format."
+    echo ""
+    echo "Erwartet: <type>(<scope>): <description>"
+    echo "Erlaubte Typen: feat, fix, docs, style, refactor, test, chore, perf"
+    echo "Max. 72 Zeichen, Imperativ, kleingeschrieben, kein Punkt am Ende."
+    echo ""
+    echo "Beispiele:"
+    echo "  feat(checker): add rule for repeated words"
+    echo "  fix(sanitizer): preserve tabs in code blocks"
+    echo "  docs: update README with usage examples"
+    echo ""
+    echo "Deine Message: $MSG"
+    exit 1
+fi
+
+# Warn if subject starts with uppercase after colon
+SUBJECT=$(echo "$MSG" | sed 's/^[^:]*: //')
+FIRST_CHAR=$(echo "$SUBJECT" | cut -c1)
+if echo "$FIRST_CHAR" | grep -q '[A-Z]'; then
+    echo "WARNUNG: Subject beginnt mit Grossbuchstabe: '$SUBJECT'"
+    echo "Konvention: Kleinschreibung nach dem Typ-Praefix."
+    # Warning only, no exit 1
+fi

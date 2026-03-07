@@ -83,10 +83,10 @@ def sanitize_text(text: str) -> str:
 
 
 def sanitize_file(
-        path: Path,
-        *,
-        dry_run: bool = False,
-        backup: bool = False,
+    path: Path,
+    *,
+    dry_run: bool = False,
+    backup: bool = False,
 ) -> SanitizeResult:
     """Sanitize a single Markdown file in-place.
 

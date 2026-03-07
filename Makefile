@@ -83,6 +83,17 @@ format-check: ## Check formatting without changes
 ci: lint format-check test ## Full CI pipeline (lint + format-check + test)
 
 # ---------------------------------------------------------------------------
+# Git
+# ---------------------------------------------------------------------------
+
+.PHONY: git-setup
+git-setup: ## Configure git hooks and commit template
+	git config core.hooksPath .githooks
+	git config commit.template .gitmessage
+	chmod +x .githooks/*
+	@echo "Git hooks und commit template aktiviert."
+
+# ---------------------------------------------------------------------------
 # Cleanup
 # ---------------------------------------------------------------------------
 

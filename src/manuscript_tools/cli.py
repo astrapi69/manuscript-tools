@@ -16,7 +16,6 @@ from manuscript_tools.metrics import batch_metrics
 from manuscript_tools.models import RunStats
 from manuscript_tools.sanitizer import sanitize_file
 
-
 # ---------------------------------------------------------------------------
 # Shared argument helpers
 # ---------------------------------------------------------------------------
@@ -80,7 +79,9 @@ def check() -> None:
     print(f"Dateien: {stats.files_seen}, Woerter: {stats.total_words}")
 
     if stats.files_failed > 0 or stats.errors > 0:
-        print(f"Status: FEHLER ({stats.files_failed} Dateien, {stats.total_violations} Verstoss(e))")
+        print(
+            f"Status: FEHLER ({stats.files_failed} Dateien, {stats.total_violations} Verstoss(e))"
+        )
         sys.exit(1)
     else:
         print("Status: OK")
@@ -151,4 +152,7 @@ def metrics() -> None:
         total_chars += m.chars
 
     print("-" * 40)
-    print(f"{'Gesamt':30s}  {total_words:>7,} Woerter  {total_lines:>6,} Zeilen  {total_chars:>8,} Zeichen")
+    print(
+        f"{'Gesamt':30s}  {total_words:>7,} Woerter"
+        f"  {total_lines:>6,} Zeilen  {total_chars:>8,} Zeichen"
+    )

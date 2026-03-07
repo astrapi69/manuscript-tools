@@ -6,9 +6,9 @@ from pathlib import Path
 
 
 def resolve_files(
-        root: Path,
-        include: str = "**/*.md",
-        exclude: list[str] | None = None,
+    root: Path,
+    include: str = "**/*.md",
+    exclude: list[str] | None = None,
 ) -> list[Path]:
     """Collect files matching *include* under *root*, minus any *exclude* globs.
 

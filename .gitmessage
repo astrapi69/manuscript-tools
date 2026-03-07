@@ -1,0 +1,31 @@
+# <type>(<scope>): <description>
+#
+# [optional body]
+#
+# [optional footer(s)]
+#
+# --- Typen ---
+# feat:     Neues Feature
+# fix:      Bugfix
+# docs:     Nur Dokumentation
+# style:    Formatting, kein Code-Change
+# refactor: Weder Feature noch Fix
+# test:     Tests hinzufuegen oder korrigieren
+# chore:    Build, CI, Dependencies, Tooling
+# perf:     Performance-Verbesserung
+#
+# --- Scopes (optional) ---
+# checker, sanitizer, metrics, cli, io, models
+#
+# --- Regeln ---
+# - Subject im Imperativ, kleingeschrieben, ohne Punkt am Ende
+# - Subject max. 72 Zeichen
+# - Body: Was und Warum, nicht Wie
+# - Breaking Changes: Footer "BREAKING CHANGE: ..." oder "!" nach Type
+#
+# --- Beispiele ---
+# feat(checker): add rule for repeated words
+# fix(sanitizer): preserve tabs in code blocks
+# docs: update README with usage examples
+# chore: bump ftfy to 6.2
+# feat(cli)!: rename ms-lint to ms-check

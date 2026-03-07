@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from manuscript_tools.checker import check_file, rule_no_dashes, rule_no_invisible_chars
+from manuscript_tools.checker import check_file, rule_no_invisible_chars
 
 
 def test_rule_no_dashes_clean(tmp_path: Path) -> None:

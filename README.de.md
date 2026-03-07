@@ -1,20 +1,16 @@
 # manuscript-tools
 
-Python-Toolkit zur Validierung, Bereinigung und Vermessung von Markdown-Manuskripten. Gebaut fuer Autoren, die ihren
-Publishing-Workflow automatisieren.
+Python-Toolkit zur Validierung, Bereinigung und Vermessung von Markdown-Manuskripten. Gebaut fuer Autoren, die ihren Publishing-Workflow automatisieren.
 
 **[English version](README.md)**
 
 ## Was es macht
 
-**ms-check** prueft das Manuskript auf Style-Verstoesse. Zwei eingebaute Regeln (typografische Gedankenstriche,
-unsichtbare Unicode-Zeichen) sind enthalten, eigene Regeln lassen sich als einfache Python-Callables registrieren.
+**ms-check** prueft das Manuskript auf Style-Verstoesse. Zwei eingebaute Regeln (typografische Gedankenstriche, unsichtbare Unicode-Zeichen) sind enthalten, eigene Regeln lassen sich als einfache Python-Callables registrieren.
 
-**ms-sanitize** repariert Encoding-Probleme, normalisiert Unicode (NFKC), entfernt unsichtbare Steuerzeichen, ersetzt
-problematische Whitespace-Zeichen und stellt einheitliche Zeilenenden sicher. Unterstuetzt Dry-Run und Backup-Modus.
+**ms-sanitize** repariert Encoding-Probleme, normalisiert Unicode (NFKC), entfernt unsichtbare Steuerzeichen, ersetzt problematische Whitespace-Zeichen und stellt einheitliche Zeilenenden sicher. Unterstuetzt Dry-Run und Backup-Modus.
 
-**ms-metrics** liefert Wortzahlen, Zeilenzahlen und Zeichenzahlen pro Datei und insgesamt. Nutzt Regex-basiertes
-Word-Boundary-Matching statt naivem Whitespace-Splitting, sodass Markdown-Syntax nicht als Woerter gezaehlt wird.
+**ms-metrics** liefert Wortzahlen, Zeilenzahlen und Zeichenzahlen pro Datei und insgesamt. Nutzt Regex-basiertes Word-Boundary-Matching statt naivem Whitespace-Splitting, sodass Markdown-Syntax nicht als Woerter gezaehlt wird.
 
 ## Voraussetzungen
 
@@ -37,8 +33,7 @@ poetry install
 
 ## Verwendung
 
-Alle Kommandos akzeptieren einen Pfad (Datei oder Verzeichnis, Standard: `manuscript/`), `--include` und `--exclude`
-Glob-Patterns.
+Alle Kommandos akzeptieren einen Pfad (Datei oder Verzeichnis, Standard: `manuscript/`), `--include` und `--exclude` Glob-Patterns.
 
 ### Style-Checks
 
@@ -96,14 +91,12 @@ from pathlib import Path
 from manuscript_tools.checker import check_file
 from manuscript_tools.models import StyleViolation
 
-
 def rule_no_todos(text: str, path: Path) -> list[StyleViolation]:
     return [
         StyleViolation(file=path, rule="no-todos", message="TODO gefunden", line=i)
         for i, line in enumerate(text.splitlines(), start=1)
         if "TODO" in line
     ]
-
 
 report = check_file(Path("kapitel.md"), rules=[rule_no_todos])
 ```
@@ -156,23 +149,23 @@ pyproject.toml      # Poetry-Konfiguration, Dependencies, Tool-Einstellungen
 
 `make` oder `make help` zeigt die vollstaendige Liste:
 
-| Target            | Beschreibung                                           |
-|-------------------|--------------------------------------------------------|
-| `install`         | Projekt mit allen Dependencies installieren            |
-| `install-dev`     | Mit Dev-Dependencies installieren                      |
-| `check`           | Style-Checks auf Manuskript ausfuehren                 |
-| `sanitize`        | Manuskript-Dateien in-place bereinigen                 |
-| `sanitize-dry`    | Bereinigung als Dry-Run (nur Vorschau)                 |
-| `sanitize-backup` | Bereinigung mit .bak-Backup-Dateien                    |
-| `metrics`         | Wortzahlen und Textmetriken anzeigen                   |
-| `validate`        | Volle Validierungs-Pipeline (Sanitize-Dry-Run + Check) |
-| `test`            | Alle Tests ausfuehren                                  |
-| `ci`              | Volle CI-Pipeline (Lint + Format-Check + Tests)        |
-| `clean`           | Build-Artefakte und Caches entfernen                   |
-| `build`           | Distributions-Paket bauen                              |
+| Target | Beschreibung |
+|---|---|
+| `install` | Projekt mit allen Dependencies installieren |
+| `install-dev` | Mit Dev-Dependencies installieren |
+| `check` | Style-Checks auf Manuskript ausfuehren |
+| `sanitize` | Manuskript-Dateien in-place bereinigen |
+| `sanitize-dry` | Bereinigung als Dry-Run (nur Vorschau) |
+| `sanitize-backup` | Bereinigung mit .bak-Backup-Dateien |
+| `metrics` | Wortzahlen und Textmetriken anzeigen |
+| `validate` | Volle Validierungs-Pipeline (Sanitize-Dry-Run + Check) |
+| `test` | Alle Tests ausfuehren |
+| `ci` | Volle CI-Pipeline (Lint + Format-Check + Tests) |
+| `clean` | Build-Artefakte und Caches entfernen |
+| `build` | Distributions-Paket bauen |
 
 Alle Manuskript-Targets akzeptieren die Variablen `MANUSCRIPT=pfad`, `INCLUDE=pattern` und `EXCLUDE=pattern`.
 
 ## Lizenz
 
-MIT
+BSD 3-Clause. Siehe [LICENSE](LICENSE).
