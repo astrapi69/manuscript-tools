@@ -25,8 +25,12 @@ install-dev: ## Install with dev dependencies
 # ---------------------------------------------------------------------------
 
 .PHONY: check
-check: ## Run style checks on manuscript
+check: ## Run core style checks on manuscript
 	poetry run ms-check $(MANUSCRIPT) --include '$(INCLUDE)' $(_EXCLUDE_FLAGS)
+
+.PHONY: check-strict
+check-strict: ## Run all checks including prose analysis (filler, passive, sentence length)
+	poetry run ms-check $(MANUSCRIPT) --include '$(INCLUDE)' $(_EXCLUDE_FLAGS) --strict
 
 .PHONY: sanitize
 sanitize: ## Sanitize manuscript files (in-place)
@@ -41,11 +45,16 @@ sanitize-backup: ## Sanitize with .bak backup files
 	poetry run ms-sanitize $(MANUSCRIPT) --include '$(INCLUDE)' $(_EXCLUDE_FLAGS) --backup
 
 .PHONY: metrics
-metrics: ## Show word counts and text metrics
+metrics: ## Show word counts, readability and text metrics
 	poetry run ms-metrics $(MANUSCRIPT) --include '$(INCLUDE)' $(_EXCLUDE_FLAGS)
 
 .PHONY: validate
-validate: sanitize-dry check ## Full validation pipeline (sanitize dry-run + style check)
+validate: ## Full validation pipeline (sanitize + check + readability)
+	poetry run ms-validate $(MANUSCRIPT) --include '$(INCLUDE)' $(_EXCLUDE_FLAGS)
+
+.PHONY: validate-fix
+validate-fix: ## Full validation with auto-fix (sanitize applied, not dry-run)
+	poetry run ms-validate $(MANUSCRIPT) --include '$(INCLUDE)' $(_EXCLUDE_FLAGS) --fix
 
 # ---------------------------------------------------------------------------
 # Development
@@ -81,6 +90,22 @@ format-check: ## Check formatting without changes
 
 .PHONY: ci
 ci: lint format-check test ## Full CI pipeline (lint + format-check + test)
+
+# ---------------------------------------------------------------------------
+# Version management
+# ---------------------------------------------------------------------------
+
+.PHONY: bump-patch
+bump-patch: ## Bump patch version (0.2.0 -> 0.2.1)
+	python scripts/bump_version.py patch
+
+.PHONY: bump-minor
+bump-minor: ## Bump minor version (0.2.0 -> 0.3.0)
+	python scripts/bump_version.py minor
+
+.PHONY: bump-major
+bump-major: ## Bump major version (0.2.0 -> 1.0.0)
+	python scripts/bump_version.py major
 
 # ---------------------------------------------------------------------------
 # Git

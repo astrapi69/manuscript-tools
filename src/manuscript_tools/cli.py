@@ -1,7 +1,7 @@
 """CLI entry points for manuscript-tools.
 
 Registered as console_scripts via pyproject.toml:
-  ms-check, ms-sanitize, ms-metrics
+  ms-check, ms-sanitize, ms-metrics, ms-validate
 """
 
 from __future__ import annotations
@@ -10,9 +10,9 @@ import argparse
 import sys
 from pathlib import Path
 
-from manuscript_tools.checker import check_files
+from manuscript_tools.checker import ALL_RULES_DE, check_files
 from manuscript_tools.io import resolve_files
-from manuscript_tools.metrics import batch_metrics
+from manuscript_tools.metrics import batch_readability, flesch_de_label
 from manuscript_tools.models import RunStats
 from manuscript_tools.sanitizer import sanitize_file
 
@@ -23,9 +23,23 @@ from manuscript_tools.sanitizer import sanitize_file
 
 def _base_parser(description: str) -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=description)
-    p.add_argument("path", nargs="?", default="manuscript", help="File or directory to process")
-    p.add_argument("--include", default="**/*.md", help="Glob pattern (default: **/*.md)")
-    p.add_argument("--exclude", action="append", default=[], help="Glob patterns to exclude")
+    p.add_argument(
+        "path",
+        nargs="?",
+        default="manuscript",
+        help="File or directory to process",
+    )
+    p.add_argument(
+        "--include",
+        default="**/*.md",
+        help="Glob pattern (default: **/*.md)",
+    )
+    p.add_argument(
+        "--exclude",
+        action="append",
+        default=[],
+        help="Glob patterns to exclude",
+    )
     return p
 
 
@@ -51,10 +65,16 @@ def _resolve_or_exit(args: argparse.Namespace) -> list[Path]:
 def check() -> None:
     """CLI: Run style checks on manuscript files."""
     parser = _base_parser("Check manuscript style rules.")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Enable all rules including prose analysis (filler words, passive, sentence length)",
+    )
     args = parser.parse_args()
     files = _resolve_or_exit(args)
 
-    reports = check_files(files)
+    rules = ALL_RULES_DE if args.strict else None
+    reports = check_files(files, rules=rules)
     stats = RunStats(files_seen=len(reports))
 
     for report in reports:
@@ -75,7 +95,7 @@ def check() -> None:
 
         stats.total_words += report.words
 
-    print("-" * 40)
+    print("-" * 60)
     print(f"Dateien: {stats.files_seen}, Woerter: {stats.total_words}")
 
     if stats.files_failed > 0 or stats.errors > 0:
@@ -94,9 +114,19 @@ def check() -> None:
 
 def sanitize() -> None:
     """CLI: Sanitize manuscript Markdown files."""
-    parser = _base_parser("Sanitize Markdown files (fix encoding, normalize Unicode).")
-    parser.add_argument("--dry-run", action="store_true", help="Show changes without writing")
-    parser.add_argument("--backup", action="store_true", help="Create .bak files before modifying")
+    parser = _base_parser(
+        "Sanitize Markdown files (fix encoding, normalize Unicode).",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show changes without writing",
+    )
+    parser.add_argument(
+        "--backup",
+        action="store_true",
+        help="Create .bak files before modifying",
+    )
     args = parser.parse_args()
     files = _resolve_or_exit(args)
 
@@ -116,7 +146,7 @@ def sanitize() -> None:
             print(f"OK: {result.path}")
             stats.files_ok += 1
 
-    print("-" * 40)
+    print("-" * 60)
     print(
         f"Gesehen: {stats.files_seen}, "
         f"Bereinigt: {stats.files_failed}, "
@@ -131,28 +161,179 @@ def sanitize() -> None:
 
 
 def metrics() -> None:
-    """CLI: Show word counts and text metrics."""
-    parser = _base_parser("Show text metrics for manuscript files.")
+    """CLI: Show word counts, readability and text metrics."""
+    parser = _base_parser("Show text metrics and readability for manuscript files.")
     args = parser.parse_args()
     files = _resolve_or_exit(args)
 
-    results = batch_metrics(files)
+    reports = batch_readability(files)
 
     total_words = 0
+    total_sentences = 0
+    total_syllables = 0
     total_lines = 0
     total_chars = 0
 
-    for m in results:
-        if m.error:
-            print(f"FEHLER: {m.path} - {m.error}", file=sys.stderr)
+    for r in reports:
+        if r.error:
+            print(f"FEHLER: {r.path} - {r.error}", file=sys.stderr)
             continue
-        print(f"{m.path.name:30s}  {m.words:>7,} Woerter  {m.lines:>6,} Zeilen")
-        total_words += m.words
-        total_lines += m.lines
-        total_chars += m.chars
 
-    print("-" * 40)
+        s = r.readability
+        label = flesch_de_label(s.flesch_de)
+        print(
+            f"{r.path.name:30s}"
+            f"  {s.words:>7,} Woerter"
+            f"  {s.sentences:>5,} Saetze"
+            f"  Flesch: {s.flesch_de:>5.1f} ({label})"
+        )
+
+        total_words += s.words
+        total_sentences += s.sentences
+        total_syllables += s.syllables
+        total_lines += s.lines
+        total_chars += s.chars
+
+    print("-" * 60)
     print(
-        f"{'Gesamt':30s}  {total_words:>7,} Woerter"
-        f"  {total_lines:>6,} Zeilen  {total_chars:>8,} Zeichen"
+        f"{'Gesamt':30s}"
+        f"  {total_words:>7,} Woerter"
+        f"  {total_sentences:>5,} Saetze"
+        f"  {total_lines:>6,} Zeilen"
     )
+
+    if total_words > 0 and total_sentences > 0:
+        from manuscript_tools.metrics import flesch_de as calc_flesch
+
+        total_flesch = calc_flesch(total_words, total_sentences, total_syllables)
+        total_label = flesch_de_label(total_flesch)
+        avg_sent = total_words / total_sentences
+        avg_syl = total_syllables / total_words
+        print()
+        print("Lesbarkeitsanalyse (gesamt):")
+        print(f"  Flesch-DE:                 {total_flesch:>5.1f} ({total_label})")
+        print(f"  Durchschn. Satzlaenge:     {avg_sent:>5.1f} Woerter")
+        print(f"  Durchschn. Silben/Wort:    {avg_syl:>5.2f}")
+
+
+# ---------------------------------------------------------------------------
+# ms-validate
+# ---------------------------------------------------------------------------
+
+
+def validate() -> None:
+    """CLI: Full validation pipeline (sanitize dry-run + strict check + metrics)."""
+    parser = _base_parser(
+        "Full validation pipeline: sanitize check, style check, readability report.",
+    )
+    parser.add_argument(
+        "--fix",
+        action="store_true",
+        help="Actually sanitize files (with backup) instead of dry-run",
+    )
+    args = parser.parse_args()
+    files = _resolve_or_exit(args)
+
+    has_errors = False
+
+    # --- Phase 1: Sanitize ---
+    print("=" * 60)
+    print("PHASE 1: Sanitize")
+    print("=" * 60)
+
+    sanitize_count = 0
+    for path in files:
+        dry_run = not args.fix
+        result = sanitize_file(path, dry_run=dry_run, backup=args.fix)
+        if result.error:
+            print(f"FEHLER: {result.path} - {result.error}", file=sys.stderr)
+            has_errors = True
+        elif result.changed:
+            verb = "BEREINIGT" if args.fix else "MUSS BEREINIGT WERDEN"
+            print(f"  {verb}: {result.path}")
+            sanitize_count += 1
+            if not args.fix:
+                has_errors = True
+
+    if sanitize_count == 0:
+        print("  Alle Dateien sauber.")
+    elif not args.fix:
+        print(f"  {sanitize_count} Datei(en) benoetigen Bereinigung.")
+        print("  Tipp: --fix zum automatischen Bereinigen verwenden.")
+
+    # --- Phase 2: Style Check ---
+    print()
+    print("=" * 60)
+    print("PHASE 2: Style-Check (alle Regeln)")
+    print("=" * 60)
+
+    reports = check_files(files, rules=ALL_RULES_DE)
+    total_violations = 0
+
+    for report in reports:
+        if report.error:
+            print(f"FEHLER: {report.path} - {report.error}", file=sys.stderr)
+            has_errors = True
+            continue
+
+        if report.ok:
+            print(f"  OK: {report.path}")
+        else:
+            for v in report.violations:
+                loc = f":{v.line}" if v.line else ""
+                print(f"  FAIL: {report.path}{loc} [{v.rule}] {v.message}")
+            total_violations += len(report.violations)
+
+    if total_violations > 0:
+        print(f"  {total_violations} Verstoss(e) gefunden.")
+        has_errors = True
+    else:
+        print("  Keine Verstoesse.")
+
+    # --- Phase 3: Readability ---
+    print()
+    print("=" * 60)
+    print("PHASE 3: Lesbarkeit")
+    print("=" * 60)
+
+    readability_reports = batch_readability(files)
+    total_words = 0
+    total_sentences = 0
+    total_syllables = 0
+
+    for r in readability_reports:
+        if r.error:
+            continue
+        s = r.readability
+        label = flesch_de_label(s.flesch_de)
+        print(
+            f"  {r.path.name:28s}"
+            f"  {s.words:>6,} W"
+            f"  {s.sentences:>4,} S"
+            f"  Flesch {s.flesch_de:>5.1f} ({label})"
+        )
+        if s.longest_sentence_words > 35:
+            print(
+                f"    Laengster Satz: {s.longest_sentence_words} Woerter"
+                f" (Zeile {s.longest_sentence_line})"
+            )
+        total_words += s.words
+        total_sentences += s.sentences
+        total_syllables += s.syllables
+
+    if total_words > 0 and total_sentences > 0:
+        from manuscript_tools.metrics import flesch_de as calc_flesch
+
+        total_flesch = calc_flesch(total_words, total_sentences, total_syllables)
+        total_label = flesch_de_label(total_flesch)
+        print()
+        print(f"  Gesamt: {total_words:,} Woerter, Flesch-DE {total_flesch:.1f} ({total_label})")
+
+    # --- Summary ---
+    print()
+    print("=" * 60)
+    if has_errors:
+        print("ERGEBNIS: Probleme gefunden. Siehe Details oben.")
+        sys.exit(1)
+    else:
+        print("ERGEBNIS: Alles OK.")

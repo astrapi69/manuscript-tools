@@ -56,8 +56,275 @@ def rule_no_invisible_chars(text: str, path: Path) -> list[StyleViolation]:
     return violations
 
 
-# Default rule set
-DEFAULT_RULES: list[StyleRule] = [rule_no_dashes, rule_no_invisible_chars]
+# ---------------------------------------------------------------------------
+# Repeated words ("der der", "und und", "the the")
+# ---------------------------------------------------------------------------
+
+_REPEATED_WORD = re.compile(r"\b(\w{2,})\s+\1\b", re.IGNORECASE | re.UNICODE)
+
+
+def rule_no_repeated_words(text: str, path: Path) -> list[StyleViolation]:
+    """Flag immediately repeated words (e.g. 'der der', 'und und')."""
+    violations: list[StyleViolation] = []
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        for m in _REPEATED_WORD.finditer(line):
+            violations.append(
+                StyleViolation(
+                    file=path,
+                    rule="no-repeated-words",
+                    message=f"Wiederholtes Wort: '{m.group(1)}'",
+                    line=lineno,
+                )
+            )
+    return violations
+
+
+# ---------------------------------------------------------------------------
+# Sentence length
+# ---------------------------------------------------------------------------
+
+_SENTENCE_END = re.compile(r'[.!?]+(?:\s|"|\u201d|\u00bb|$)')
+_WORD_RE = re.compile(r"\b\w+\b", re.UNICODE)
+
+# Threshold: sentences longer than this are flagged
+MAX_SENTENCE_WORDS = 40
+
+
+def rule_max_sentence_length(text: str, path: Path) -> list[StyleViolation]:
+    """Flag sentences exceeding MAX_SENTENCE_WORDS words.
+
+    Long sentences reduce readability. The default threshold of 40 words
+    is generous; most style guides recommend 20-25 for prose.
+    """
+    violations: list[StyleViolation] = []
+    lines = text.splitlines()
+
+    for lineno, line in enumerate(lines, start=1):
+        # Skip Markdown headings, code blocks, list markers
+        stripped = line.strip()
+        if (
+            stripped.startswith("#")
+            or stripped.startswith("```")
+            or stripped.startswith(">")
+            or stripped.startswith("- ")
+            or stripped.startswith("* ")
+            or re.match(r"^\d+\.\s", stripped)
+        ):
+            continue
+
+        # Split line into sentence fragments at boundaries
+        fragments = _SENTENCE_END.split(line)
+        for fragment in fragments:
+            words = _WORD_RE.findall(fragment)
+            if len(words) > MAX_SENTENCE_WORDS:
+                violations.append(
+                    StyleViolation(
+                        file=path,
+                        rule="max-sentence-length",
+                        message=f"Satz mit {len(words)} Woertern (max {MAX_SENTENCE_WORDS})",
+                        line=lineno,
+                    )
+                )
+
+    return violations
+
+
+# ---------------------------------------------------------------------------
+# Filler words (German)
+# ---------------------------------------------------------------------------
+
+# Common German filler words that weaken prose
+_FILLER_WORDS_DE: frozenset[str] = frozenset(
+    {
+        "eigentlich",
+        "irgendwie",
+        "irgendwann",
+        "irgendwo",
+        "irgendwas",
+        "sozusagen",
+        "gewissermasen",
+        "grundsaetzlich",
+        "quasi",
+        "halt",
+        "eben",
+        "wohl",
+        "ziemlich",
+        "durchaus",
+        "letztendlich",
+        "schlussendlich",
+        "bekanntlich",
+        "selbstverstaendlich",
+        "natuerlich",
+        "offensichtlich",
+        "moeglicherweise",
+        "eventuell",
+        "gegebenenfalls",
+        "im grunde",
+        "an sich",
+        "an und fuer sich",
+        "so gesehen",
+        "nichtsdestotrotz",
+        "im prinzip",
+    }
+)
+
+# Build regex from single-word fillers
+_FILLER_SINGLE = frozenset(w for w in _FILLER_WORDS_DE if " " not in w)
+_FILLER_MULTI = frozenset(w for w in _FILLER_WORDS_DE if " " in w)
+
+_FILLER_SINGLE_RE = re.compile(
+    r"\b(" + "|".join(re.escape(w) for w in sorted(_FILLER_SINGLE)) + r")\b",
+    re.IGNORECASE,
+)
+
+_FILLER_MULTI_RE = re.compile(
+    r"\b(" + "|".join(re.escape(w) for w in sorted(_FILLER_MULTI)) + r")\b",
+    re.IGNORECASE,
+)
+
+
+def rule_filler_words_de(text: str, path: Path) -> list[StyleViolation]:
+    """Flag German filler words that weaken prose.
+
+    This is an advisory rule. Not every occurrence is wrong,
+    but high density of filler words typically indicates weak writing.
+    """
+    violations: list[StyleViolation] = []
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        # Skip headings and code
+        stripped = line.strip()
+        if stripped.startswith("#") or stripped.startswith("```"):
+            continue
+
+        for m in _FILLER_SINGLE_RE.finditer(line):
+            violations.append(
+                StyleViolation(
+                    file=path,
+                    rule="filler-words-de",
+                    message=f"Fuellwort: '{m.group(1)}'",
+                    line=lineno,
+                )
+            )
+        for m in _FILLER_MULTI_RE.finditer(line):
+            violations.append(
+                StyleViolation(
+                    file=path,
+                    rule="filler-words-de",
+                    message=f"Fuellwort: '{m.group(1)}'",
+                    line=lineno,
+                )
+            )
+
+    return violations
+
+
+# ---------------------------------------------------------------------------
+# Passive voice (German)
+# ---------------------------------------------------------------------------
+
+# German passive is formed with "werden/wurde/wird" + past participle
+# Past participles: ge...t/ge...en OR inseparable prefix verbs (be-, ver-, er-, zer-, ent-, emp-)
+_PARTICIPLE = r"(?:ge\w+(?:t|en|et)|(?:be|ver|er|zer|ent|emp|miss)\w+(?:t|en|et))"
+
+_PASSIVE_PATTERN = re.compile(
+    r"\b(wird|werde|werden|wurde|wurden|wirst|wuerde|wuerden)"
+    r"\s+[\w\s]{0,30}?"
+    r"\b(" + _PARTICIPLE + r")\b",
+    re.IGNORECASE,
+)
+
+# "worden" as indicator of Perfekt-Passiv
+_WORDEN_PATTERN = re.compile(
+    r"\b(ist|sind|war|waren)\s+[\w\s]{0,30}?\b(" + _PARTICIPLE + r")\s+worden\b",
+    re.IGNORECASE,
+)
+
+
+def rule_passive_voice_de(text: str, path: Path) -> list[StyleViolation]:
+    """Flag potential passive voice constructions in German text.
+
+    Passive voice is not always wrong, but high density often indicates
+    weak, impersonal writing. This rule helps identify passages that
+    could benefit from active reformulation.
+    """
+    violations: list[StyleViolation] = []
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        stripped = line.strip()
+        if stripped.startswith("#") or stripped.startswith("```"):
+            continue
+
+        for m in _PASSIVE_PATTERN.finditer(line):
+            violations.append(
+                StyleViolation(
+                    file=path,
+                    rule="passive-voice-de",
+                    message=(f"Passivkonstruktion: '{m.group(1)} ... {m.group(2)}'"),
+                    line=lineno,
+                )
+            )
+        for m in _WORDEN_PATTERN.finditer(line):
+            violations.append(
+                StyleViolation(
+                    file=path,
+                    rule="passive-voice-de",
+                    message=(f"Perfekt-Passiv: '{m.group(1)} ... {m.group(2)} worden'"),
+                    line=lineno,
+                )
+            )
+
+    return violations
+
+
+# ---------------------------------------------------------------------------
+# Double spaces
+# ---------------------------------------------------------------------------
+
+_DOUBLE_SPACE = re.compile(r"(?<!\n) {2,}(?!\n)")
+
+
+def rule_no_double_spaces(text: str, path: Path) -> list[StyleViolation]:
+    """Flag double or multiple spaces within lines."""
+    violations: list[StyleViolation] = []
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            continue
+        if _DOUBLE_SPACE.search(line):
+            violations.append(
+                StyleViolation(
+                    file=path,
+                    rule="no-double-spaces",
+                    message="Doppelte Leerzeichen gefunden",
+                    line=lineno,
+                )
+            )
+    return violations
+
+
+# ---------------------------------------------------------------------------
+# Rule sets
+# ---------------------------------------------------------------------------
+
+# Core rules: always relevant, low noise
+CORE_RULES: list[StyleRule] = [
+    rule_no_dashes,
+    rule_no_invisible_chars,
+    rule_no_repeated_words,
+    rule_no_double_spaces,
+]
+
+# German prose rules: advisory, may produce false positives
+PROSE_RULES_DE: list[StyleRule] = [
+    rule_max_sentence_length,
+    rule_filler_words_de,
+    rule_passive_voice_de,
+]
+
+# Default: core rules only (backwards compatible)
+DEFAULT_RULES: list[StyleRule] = [*CORE_RULES]
+
+# Full: core + prose (for thorough analysis)
+ALL_RULES_DE: list[StyleRule] = [*CORE_RULES, *PROSE_RULES_DE]
 
 # ---------------------------------------------------------------------------
 # Public API

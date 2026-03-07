@@ -40,6 +40,32 @@ class SanitizeResult:
 
 
 @dataclass
+class ReadabilityStats:
+    """Readability metrics for a text or file."""
+
+    sentences: int = 0
+    words: int = 0
+    syllables: int = 0
+    chars: int = 0
+    lines: int = 0
+    avg_sentence_length: float = 0.0
+    avg_word_length: float = 0.0
+    avg_syllables_per_word: float = 0.0
+    flesch_de: float = 0.0
+    longest_sentence_words: int = 0
+    longest_sentence_line: int = 0
+
+
+@dataclass
+class FileMetricsReport:
+    """Full metrics report for a single file."""
+
+    path: Path
+    readability: ReadabilityStats = field(default_factory=ReadabilityStats)
+    error: str | None = None
+
+
+@dataclass
 class RunStats:
     """Aggregated statistics for a batch run."""
 
