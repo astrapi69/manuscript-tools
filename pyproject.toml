@@ -1,6 +1,6 @@
 [project]
 name = "manuscript-tools"
-version = "0.2.0"
+version = "0.3.0"
 description = "Validation, sanitization and metrics for Markdown manuscripts."
 readme = "README.md"
 [[project.authors]]
@@ -25,6 +25,7 @@ ftfy   = "^6.1"
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0"
 ruff   = "^0.4"
+questionary = { version = "^2.0", optional = true }
 
 [tool.ruff]
 target-version = "py311"
