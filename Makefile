@@ -153,6 +153,14 @@ clean-bak: ## Remove .bak files created by sanitize --backup
 build: ## Build distribution package
 	poetry build
 
+.PHONY: publish
+publish: ci build ## Run CI, build and publish to PyPI
+	poetry publish
+
+.PHONY: publish-test
+publish-test: ci build ## Run CI, build and publish to TestPyPI
+	poetry publish -r testpypi
+
 # ---------------------------------------------------------------------------
 # Help
 # ---------------------------------------------------------------------------
