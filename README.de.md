@@ -1,170 +1,94 @@
 # manuscript-tools
 
-Python-Toolkit zur Validierung, Bereinigung und Vermessung von Markdown-Manuskripten. Gebaut fuer Autoren, die ihren Publishing-Workflow automatisieren.
+QA-Toolkit für deutschsprachige Markdown-Manuskripte. Validiert Style, bereinigt Encoding, konvertiert Anführungszeichen und misst Lesbarkeit.
 
-**[English version](README.md)**
-
-## Was es macht
-
-**ms-check** prueft das Manuskript auf Style-Verstoesse. Zwei eingebaute Regeln (typografische Gedankenstriche, unsichtbare Unicode-Zeichen) sind enthalten, eigene Regeln lassen sich als einfache Python-Callables registrieren.
-
-**ms-sanitize** repariert Encoding-Probleme, normalisiert Unicode (NFKC), entfernt unsichtbare Steuerzeichen, ersetzt problematische Whitespace-Zeichen und stellt einheitliche Zeilenenden sicher. Unterstuetzt Dry-Run und Backup-Modus.
-
-**ms-metrics** liefert Wortzahlen, Zeilenzahlen und Zeichenzahlen pro Datei und insgesamt. Nutzt Regex-basiertes Word-Boundary-Matching statt naivem Whitespace-Splitting, sodass Markdown-Syntax nicht als Woerter gezaehlt wird.
-
-## Voraussetzungen
-
-- Python 3.11+
-- Poetry
+**[English version](README.md)** | **[Wiki](https://github.com/astrapi69/manuscript-tools/wiki)**
 
 ## Installation
 
 ```bash
-git clone <deine-repo-url> manuscript-tools
-cd manuscript-tools
-make install
+pip install manuscript-tools
 ```
 
-Oder manuell:
+Oder als Projekt-Dependency:
 
 ```bash
-poetry install
+poetry add manuscript-tools
 ```
 
-## Verwendung
+## Kommandos
 
-Alle Kommandos akzeptieren einen Pfad (Datei oder Verzeichnis, Standard: `manuscript/`), `--include` und `--exclude` Glob-Patterns.
+| Kommando | Beschreibung |
+|---|---|
+| `ms-check` | Style-Checks (5 Core-Regeln, `--strict` fügt 3 Prosa-Regeln hinzu) |
+| `ms-sanitize` | Encoding reparieren, unsichtbare Zeichen entfernen, Unicode normalisieren |
+| `ms-quotes` | Anführungszeichen in deutsche Typografie konvertieren „ " ‚ ' |
+| `ms-metrics` | Wortzahl, Satzanalyse, Flesch-DE Lesbarkeitsindex |
+| `ms-validate` | Volle QA-Pipeline (Sanitize + Quotes + Check + Lesbarkeit) |
 
-### Style-Checks
+## Schnellstart
 
 ```bash
-make check
-# oder mit eigenem Pfad
-make check MANUSCRIPT=kapitel/
-# oder direkt
-poetry run ms-check manuscript/ --exclude 'entwuerfe/*'
+# Volle QA-Pipeline
+ms-validate manuscript/
+
+# Nur Style-Check (Core-Regeln)
+ms-check manuscript/
+
+# Style-Check mit Prosa-Analyse (Füllwörter, Passiv, Satzlänge)
+ms-check manuscript/ --strict
+
+# Lesbarkeitsreport
+ms-metrics manuscript/
+
+# Anführungszeichen korrigieren (Vorschau)
+ms-quotes manuscript/ --dry-run
 ```
 
-Ausgabe pro Datei: Regelname, Verstoessbeschreibung und Zeilennummer. Exit-Code 1 bei Verstoessen.
+## Regeln
 
-### Bereinigung
+**Core** (immer aktiv):
 
-```bash
-# Vorschau ohne Schreiben
-make sanitize-dry
+`no-dashes`, `no-invisible-chars`, `no-repeated-words`, `no-double-spaces`, `non-german-quotes`
 
-# Aenderungen mit Backup
-make sanitize-backup
+**Prosa** (mit `--strict` oder `ms-validate`):
 
-# Aenderungen direkt (ohne Backup)
-make sanitize
-```
+`max-sentence-length`, `filler-words-de`, `passive-voice-de`
 
-### Textmetriken
+Eigene Regeln sind einfache Callables mit der Signatur `(text: str, path: Path) -> list[StyleViolation]`. Das [Wiki](https://github.com/astrapi69/manuscript-tools/wiki/03-Eigene-Regeln) enthält ein Schritt-für-Schritt-Tutorial.
 
-```bash
-make metrics
-```
+## Lesbarkeit
 
-Ausgabe:
+`ms-metrics` berechnet den Flesch-DE Lesbarkeitsindex (Amstad, 1978) mit deutscher Silbenzählung. Bewertung:
 
-```
-kapitel-01.md                     3.412 Woerter   187 Zeilen
-kapitel-02.md                     2.891 Woerter   154 Zeilen
-----------------------------------------
-Gesamt                            6.303 Woerter   341 Zeilen    38.219 Zeichen
-```
-
-### Kombinierte Validierung
-
-```bash
-# Fuehrt Sanitize-Dry-Run gefolgt von Style-Check aus
-make validate
-```
-
-## Eigene Regeln schreiben
-
-Eine Regel ist jedes Callable mit der Signatur `(text: str, path: Path) -> list[StyleViolation]`.
-
-```python
-from pathlib import Path
-from manuscript_tools.checker import check_file
-from manuscript_tools.models import StyleViolation
-
-def rule_no_todos(text: str, path: Path) -> list[StyleViolation]:
-    return [
-        StyleViolation(file=path, rule="no-todos", message="TODO gefunden", line=i)
-        for i, line in enumerate(text.splitlines(), start=1)
-        if "TODO" in line
-    ]
-
-report = check_file(Path("kapitel.md"), rules=[rule_no_todos])
-```
+| Score | Bewertung | Typische Verwendung |
+|---|---|---|
+| 80-100 | Sehr leicht | Kinderbuch |
+| 60-80 | Leicht bis mittel | Belletristik, Sachbuch |
+| 30-60 | Schwer | Journalismus, Fachtext |
+| 0-30 | Sehr schwer | Juristisch, wissenschaftlich |
 
 ## Entwicklung
 
 ```bash
-# Mit Dev-Dependencies installieren
+git clone https://github.com/astrapi69/manuscript-tools.git
+cd manuscript-tools
 make install-dev
-
-# Tests ausfuehren
-make test
-
-# Tests ausfuehrlich
-make test-v
-
-# Linter
-make lint
-
-# Lint-Probleme automatisch beheben
-make lint-fix
-
-# Code formatieren
-make format
-
-# Volle CI-Pipeline (Lint + Format-Check + Tests)
-make ci
+make ci          # Lint + Format-Check + 89 Tests
 ```
 
-## Projektstruktur
+## Dokumentation
 
-```
-src/manuscript_tools/
-    __init__.py
-    models.py       # Datenklassen (StyleViolation, FileReport, SanitizeResult, ...)
-    io.py           # Datei-Discovery und Lesen
-    checker.py      # Style-Validierung mit erweiterbaren Regeln
-    sanitizer.py    # Textbereinigung (reine Logik + Datei-Operationen)
-    metrics.py      # Wortzaehlung und Textstatistiken
-    cli.py          # CLI-Einstiegspunkte (ms-check, ms-sanitize, ms-metrics)
-tests/
-    test_checker.py
-    test_sanitizer.py
-    test_metrics.py
-Makefile            # Alle Tasks an einem Ort
-pyproject.toml      # Poetry-Konfiguration, Dependencies, Tool-Einstellungen
-```
+Die vollständige Dokumentation liegt im [Wiki](https://github.com/astrapi69/manuscript-tools/wiki):
 
-## Makefile-Targets
-
-`make` oder `make help` zeigt die vollstaendige Liste:
-
-| Target | Beschreibung |
-|---|---|
-| `install` | Projekt mit allen Dependencies installieren |
-| `install-dev` | Mit Dev-Dependencies installieren |
-| `check` | Style-Checks auf Manuskript ausfuehren |
-| `sanitize` | Manuskript-Dateien in-place bereinigen |
-| `sanitize-dry` | Bereinigung als Dry-Run (nur Vorschau) |
-| `sanitize-backup` | Bereinigung mit .bak-Backup-Dateien |
-| `metrics` | Wortzahlen und Textmetriken anzeigen |
-| `validate` | Volle Validierungs-Pipeline (Sanitize-Dry-Run + Check) |
-| `test` | Alle Tests ausfuehren |
-| `ci` | Volle CI-Pipeline (Lint + Format-Check + Tests) |
-| `clean` | Build-Artefakte und Caches entfernen |
-| `build` | Distributions-Paket bauen |
-
-Alle Manuskript-Targets akzeptieren die Variablen `MANUSCRIPT=pfad`, `INCLUDE=pattern` und `EXCLUDE=pattern`.
+- [Installation und Setup](https://github.com/astrapi69/manuscript-tools/wiki/01-Installation-und-Setup)
+- [Verwendung](https://github.com/astrapi69/manuscript-tools/wiki/02-Verwendung)
+- [Eigene Regeln schreiben](https://github.com/astrapi69/manuscript-tools/wiki/03-Eigene-Regeln)
+- [Integration in andere Projekte](https://github.com/astrapi69/manuscript-tools/wiki/04-Integration)
+- [Publishing auf PyPI](https://github.com/astrapi69/manuscript-tools/wiki/05-Publishing)
+- [Entwicklung und CI](https://github.com/astrapi69/manuscript-tools/wiki/06-Entwicklung-und-CI)
+- [FAQ](https://github.com/astrapi69/manuscript-tools/wiki/07-FAQ)
+- [Quick Start für Buchprojekte](https://github.com/astrapi69/manuscript-tools/wiki/08-Quick-Start)
 
 ## Lizenz
 
