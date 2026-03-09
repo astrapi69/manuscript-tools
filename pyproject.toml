@@ -9,12 +9,12 @@ email = "asteri.raptis@gmail.com"
 
 [tool.poetry]
 license = "BSD-3-Clause"
-
 packages = [{ include = "manuscript_tools", from = "src" }]
 
 [tool.poetry.scripts]
 ms-check    = "manuscript_tools.cli:check"
 ms-sanitize = "manuscript_tools.cli:sanitize"
+ms-quotes   = "manuscript_tools.cli:quotes"
 ms-metrics  = "manuscript_tools.cli:metrics"
 ms-validate = "manuscript_tools.cli:validate"
 

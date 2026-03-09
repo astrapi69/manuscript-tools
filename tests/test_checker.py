@@ -11,6 +11,7 @@ from manuscript_tools.checker import (
     rule_no_double_spaces,
     rule_no_invisible_chars,
     rule_no_repeated_words,
+    rule_non_german_quotes,
     rule_passive_voice_de,
 )
 
@@ -195,6 +196,36 @@ def test_passive_voice_worden() -> None:
 
 
 # ---------------------------------------------------------------------------
+# rule_non_german_quotes
+# ---------------------------------------------------------------------------
+
+
+def test_non_german_quotes_straight() -> None:
+    text = 'Er sagte "Hallo" und ging.\n'
+    violations = rule_non_german_quotes(text, Path("test.md"))
+    assert len(violations) == 1
+    assert violations[0].rule == "non-german-quotes"
+
+
+def test_non_german_quotes_english_close() -> None:
+    text = "Text mit \u201d hier.\n"
+    violations = rule_non_german_quotes(text, Path("test.md"))
+    assert len(violations) == 1
+
+
+def test_non_german_quotes_correct() -> None:
+    text = "Er sagte \u201eHallo\u201c und ging.\n"
+    violations = rule_non_german_quotes(text, Path("test.md"))
+    assert len(violations) == 0
+
+
+def test_non_german_quotes_ignores_code() -> None:
+    text = '```\necho "hello"\n```\n'
+    violations = rule_non_german_quotes(text, Path("test.md"))
+    assert len(violations) == 0
+
+
+# ---------------------------------------------------------------------------
 # Rule sets and check_file
 # ---------------------------------------------------------------------------
 
@@ -208,11 +239,11 @@ def test_custom_rules(tmp_path: Path) -> None:
 
 
 def test_core_rules_count() -> None:
-    assert len(CORE_RULES) == 4
+    assert len(CORE_RULES) == 5
 
 
 def test_all_rules_de_count() -> None:
-    assert len(ALL_RULES_DE) == 7
+    assert len(ALL_RULES_DE) == 8
 
 
 def test_missing_file(tmp_path: Path) -> None:

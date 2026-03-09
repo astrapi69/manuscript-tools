@@ -302,6 +302,44 @@ def rule_no_double_spaces(text: str, path: Path) -> list[StyleViolation]:
 
 
 # ---------------------------------------------------------------------------
+# Non-German quotation marks
+# ---------------------------------------------------------------------------
+
+
+def rule_non_german_quotes(text: str, path: Path) -> list[StyleViolation]:
+    """Flag lines containing non-German quotation marks.
+
+    Detects straight double quotes (\"), English closing double (\u201d)
+    and English closing single (\u2019) outside of code spans and HTML attributes.
+    Use ms-quotes to fix them automatically.
+    """
+    from manuscript_tools.quotes import has_non_german_quotes
+
+    violations: list[StyleViolation] = []
+    in_code_block = False
+
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        stripped = line.strip()
+
+        if stripped.startswith("```"):
+            in_code_block = not in_code_block
+            continue
+        if in_code_block:
+            continue
+
+        if has_non_german_quotes(line):
+            violations.append(
+                StyleViolation(
+                    file=path,
+                    rule="non-german-quotes",
+                    message="Nicht-deutsche Anführungszeichen gefunden",
+                    line=lineno,
+                )
+            )
+    return violations
+
+
+# ---------------------------------------------------------------------------
 # Rule sets
 # ---------------------------------------------------------------------------
 
@@ -311,6 +349,7 @@ CORE_RULES: list[StyleRule] = [
     rule_no_invisible_chars,
     rule_no_repeated_words,
     rule_no_double_spaces,
+    rule_non_german_quotes,
 ]
 
 # German prose rules: advisory, may produce false positives

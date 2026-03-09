@@ -1,7 +1,7 @@
 """CLI entry points for manuscript-tools.
 
 Registered as console_scripts via pyproject.toml:
-  ms-check, ms-sanitize, ms-metrics, ms-validate
+  ms-check, ms-sanitize, ms-quotes, ms-metrics, ms-validate
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ from manuscript_tools.checker import ALL_RULES_DE, check_files
 from manuscript_tools.io import resolve_files
 from manuscript_tools.metrics import batch_readability, flesch_de_label
 from manuscript_tools.models import RunStats
+from manuscript_tools.quotes import convert_file
 from manuscript_tools.sanitizer import sanitize_file
 
 # ---------------------------------------------------------------------------
@@ -156,6 +157,64 @@ def sanitize() -> None:
 
 
 # ---------------------------------------------------------------------------
+# ms-quotes
+# ---------------------------------------------------------------------------
+
+
+def quotes() -> None:
+    """CLI: Convert quotation marks to German typographic style."""
+    parser = _base_parser(
+        "Convert quotation marks to German style (\u201e \u201c \u201a \u2018).",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show changes without writing",
+    )
+    parser.add_argument(
+        "--no-backup",
+        action="store_true",
+        help="Do not create .bak files",
+    )
+    args = parser.parse_args()
+    files = _resolve_or_exit(args)
+
+    total_replacements = 0
+    files_changed = 0
+
+    for path in files:
+        result = convert_file(
+            path,
+            dry_run=args.dry_run,
+            backup=not args.no_backup,
+        )
+
+        if result.error:
+            print(f"FEHLER: {result.path} - {result.error}", file=sys.stderr)
+            continue
+
+        if result.changed:
+            verb = "WOULD FIX" if args.dry_run else "FIXED"
+            s = result.stats
+            print(f"{verb}: {result.path} ({s.total_replacements} Ersetzung(en))")
+            files_changed += 1
+            total_replacements += s.total_replacements
+        else:
+            print(f"OK: {result.path}")
+
+        for w in result.stats.warning_messages:
+            print(f"  WARNUNG: {w}", file=sys.stderr)
+
+    print("-" * 60)
+    print(
+        f"Dateien: {len(files)}, "
+        f"Korrigiert: {files_changed}, "
+        f"Ersetzungen: {total_replacements}"
+        f"{' (dry-run)' if args.dry_run else ''}"
+    )
+
+
+# ---------------------------------------------------------------------------
 # ms-metrics
 # ---------------------------------------------------------------------------
 
@@ -258,13 +317,42 @@ def validate() -> None:
     if sanitize_count == 0:
         print("  Alle Dateien sauber.")
     elif not args.fix:
-        print(f"  {sanitize_count} Datei(en) benoetigen Bereinigung.")
+        print(f"  {sanitize_count} Datei(en) benötigen Bereinigung.")
         print("  Tipp: --fix zum automatischen Bereinigen verwenden.")
 
-    # --- Phase 2: Style Check ---
+    # --- Phase 2: Quotes ---
     print()
     print("=" * 60)
-    print("PHASE 2: Style-Check (alle Regeln)")
+    print("PHASE 2: Anführungszeichen")
+    print("=" * 60)
+
+    quotes_count = 0
+    for path in files:
+        dry_run = not args.fix
+        result = convert_file(path, dry_run=dry_run, backup=args.fix)
+        if result.error:
+            print(f"FEHLER: {result.path} - {result.error}", file=sys.stderr)
+            has_errors = True
+        elif result.changed:
+            verb = "KORRIGIERT" if args.fix else "MUSS KORRIGIERT WERDEN"
+            print(f"  {verb}: {result.path} ({result.stats.total_replacements} Ersetzung(en))")
+            quotes_count += 1
+            if not args.fix:
+                has_errors = True
+
+        for w in result.stats.warning_messages:
+            print(f"    WARNUNG: {w}", file=sys.stderr)
+
+    if quotes_count == 0:
+        print("  Alle Anführungszeichen korrekt.")
+    elif not args.fix:
+        print(f"  {quotes_count} Datei(en) mit nicht-deutschen Anführungszeichen.")
+        print("  Tipp: --fix oder ms-quotes zum Korrigieren verwenden.")
+
+    # --- Phase 3: Style Check ---
+    print()
+    print("=" * 60)
+    print("PHASE 3: Style-Check (alle Regeln)")
     print("=" * 60)
 
     reports = check_files(files, rules=ALL_RULES_DE)
@@ -293,7 +381,7 @@ def validate() -> None:
     # --- Phase 3: Readability ---
     print()
     print("=" * 60)
-    print("PHASE 3: Lesbarkeit")
+    print("PHASE 4: Lesbarkeit")
     print("=" * 60)
 
     readability_reports = batch_readability(files)

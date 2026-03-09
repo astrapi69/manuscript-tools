@@ -44,6 +44,14 @@ sanitize-dry: ## Sanitize dry-run (show changes without writing)
 sanitize-backup: ## Sanitize with .bak backup files
 	poetry run ms-sanitize $(MANUSCRIPT) --include '$(INCLUDE)' $(_EXCLUDE_FLAGS) --backup
 
+.PHONY: quotes
+quotes: ## Fix German quotation marks
+	poetry run ms-quotes $(MANUSCRIPT) --include '$(INCLUDE)' $(_EXCLUDE_FLAGS)
+
+.PHONY: quotes-dry
+quotes-dry: ## Preview quotation mark fixes
+	poetry run ms-quotes $(MANUSCRIPT) --include '$(INCLUDE)' $(_EXCLUDE_FLAGS) --dry-run
+
 .PHONY: metrics
 metrics: ## Show word counts, readability and text metrics
 	poetry run ms-metrics $(MANUSCRIPT) --include '$(INCLUDE)' $(_EXCLUDE_FLAGS)
