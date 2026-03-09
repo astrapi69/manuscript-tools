@@ -57,6 +57,21 @@ ms-quotes manuscript/ --dry-run
 
 Eigene Regeln sind einfache Callables mit der Signatur `(text: str, path: Path) -> list[StyleViolation]`. Das [Wiki](https://github.com/astrapi69/manuscript-tools/wiki/03-Eigene-Regeln) enthält ein Schritt-für-Schritt-Tutorial.
 
+## Konfiguration
+
+Konfigurierbar über `[tool.manuscript-tools]` in der `pyproject.toml`:
+
+```toml
+[tool.manuscript-tools]
+rules = ["max-sentence-length"]          # mit Defaults zusammenführen
+disable = ["passive-voice-de"]           # aus aktivem Set entfernen
+max-sentence-words = 30                  # Default: 40
+flesch-target = [65, 80]                 # warnen wenn ausserhalb
+filler-words-extra = ["definitiv", "absolut"]  # Füllwortliste erweitern
+```
+
+Keine Konfiguration = alle Defaults. `rules` wird mit Defaults zusammengeführt (Union). `disable` entfernt aus dem aktiven Set und hat Vorrang vor `rules`. Details im [Wiki](https://github.com/astrapi69/manuscript-tools/wiki/09-Konfiguration).
+
 ## Lesbarkeit
 
 `ms-metrics` berechnet den Flesch-DE Lesbarkeitsindex (Amstad, 1978) mit deutscher Silbenzählung. Bewertung:
@@ -74,7 +89,7 @@ Eigene Regeln sind einfache Callables mit der Signatur `(text: str, path: Path) 
 git clone https://github.com/astrapi69/manuscript-tools.git
 cd manuscript-tools
 make install-dev
-make ci          # Lint + Format-Check + 89 Tests
+make ci          # Lint + Format-Check + 112 Tests
 ```
 
 ## Dokumentation
@@ -89,6 +104,7 @@ Die vollständige Dokumentation liegt im [Wiki](https://github.com/astrapi69/man
 - [Entwicklung und CI](https://github.com/astrapi69/manuscript-tools/wiki/06-Entwicklung-und-CI)
 - [FAQ](https://github.com/astrapi69/manuscript-tools/wiki/07-FAQ)
 - [Quick Start für Buchprojekte](https://github.com/astrapi69/manuscript-tools/wiki/08-Quick-Start)
+- [Konfiguration](https://github.com/astrapi69/manuscript-tools/wiki/09-Konfiguration)
 
 ## Lizenz
 

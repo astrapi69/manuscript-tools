@@ -57,6 +57,21 @@ ms-quotes manuscript/ --dry-run
 
 Custom rules are simple callables with the signature `(text: str, path: Path) -> list[StyleViolation]`. See the [Wiki](https://github.com/astrapi69/manuscript-tools/wiki/03-Eigene-Regeln) for a step-by-step tutorial.
 
+## Configuration
+
+Configure via `[tool.manuscript-tools]` in your `pyproject.toml`:
+
+```toml
+[tool.manuscript-tools]
+rules = ["max-sentence-length"]          # merge with defaults
+disable = ["passive-voice-de"]           # remove from active set
+max-sentence-words = 30                  # default: 40
+flesch-target = [65, 80]                 # warn if outside range
+filler-words-extra = ["definitiv", "absolut"]  # extend filler list
+```
+
+No config = all defaults. `rules` merges with defaults (union). `disable` removes from the active set and takes precedence over `rules`. See the [Wiki](https://github.com/astrapi69/manuscript-tools/wiki/09-Konfiguration) for details.
+
 ## Readability
 
 `ms-metrics` computes the Flesch-DE reading ease score (Amstad, 1978) with German-optimized syllable counting. Score interpretation:
@@ -74,7 +89,7 @@ Custom rules are simple callables with the signature `(text: str, path: Path) ->
 git clone https://github.com/astrapi69/manuscript-tools.git
 cd manuscript-tools
 make install-dev
-make ci          # lint + format check + 89 tests
+make ci          # lint + format check + 112 tests
 ```
 
 ## Documentation
@@ -89,6 +104,7 @@ Full documentation is available in the [Wiki](https://github.com/astrapi69/manus
 - [Development and CI](https://github.com/astrapi69/manuscript-tools/wiki/06-Entwicklung-und-CI)
 - [FAQ](https://github.com/astrapi69/manuscript-tools/wiki/07-FAQ)
 - [Quick Start for Book Projects](https://github.com/astrapi69/manuscript-tools/wiki/08-Quick-Start)
+- [Configuration](https://github.com/astrapi69/manuscript-tools/wiki/09-Konfiguration)
 
 ## License
 
