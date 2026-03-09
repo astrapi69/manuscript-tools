@@ -12,6 +12,11 @@ _EXCLUDE_FLAGS := $(foreach p,$(EXCLUDE),--exclude $(p))
 # Setup
 # ---------------------------------------------------------------------------
 
+.PHONY: lock-install
+lock-install: ## Lock and Install project dependencies
+	poetry lock
+	poetry install
+
 .PHONY: install
 install: ## Install project with all dependencies
 	poetry install
