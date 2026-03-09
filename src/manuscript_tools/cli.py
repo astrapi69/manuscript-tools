@@ -10,7 +10,8 @@ import argparse
 import sys
 from pathlib import Path
 
-from manuscript_tools.checker import ALL_RULES_DE, check_files
+from manuscript_tools.checker import check_files
+from manuscript_tools.config import resolve_config
 from manuscript_tools.io import resolve_files
 from manuscript_tools.metrics import batch_readability, flesch_de_label
 from manuscript_tools.models import RunStats
@@ -74,8 +75,12 @@ def check() -> None:
     args = parser.parse_args()
     files = _resolve_or_exit(args)
 
-    rules = ALL_RULES_DE if args.strict else None
-    reports = check_files(files, rules=rules)
+    cfg = resolve_config(strict=args.strict)
+
+    for w in cfg.warnings:
+        print(f"CONFIG: {w}", file=sys.stderr)
+
+    reports = check_files(files, rules=cfg.active_rules)
     stats = RunStats(files_seen=len(reports))
 
     for report in reports:
@@ -293,6 +298,11 @@ def validate() -> None:
     args = parser.parse_args()
     files = _resolve_or_exit(args)
 
+    cfg = resolve_config(strict=True)
+
+    for w in cfg.warnings:
+        print(f"CONFIG: {w}", file=sys.stderr)
+
     has_errors = False
 
     # --- Phase 1: Sanitize ---
@@ -355,7 +365,7 @@ def validate() -> None:
     print("PHASE 3: Style-Check (alle Regeln)")
     print("=" * 60)
 
-    reports = check_files(files, rules=ALL_RULES_DE)
+    reports = check_files(files, rules=cfg.active_rules)
     total_violations = 0
 
     for report in reports:
@@ -378,7 +388,7 @@ def validate() -> None:
     else:
         print("  Keine Verstoesse.")
 
-    # --- Phase 3: Readability ---
+    # --- Phase 4: Readability ---
     print()
     print("=" * 60)
     print("PHASE 4: Lesbarkeit")
@@ -416,6 +426,18 @@ def validate() -> None:
         total_label = flesch_de_label(total_flesch)
         print()
         print(f"  Gesamt: {total_words:,} Woerter, Flesch-DE {total_flesch:.1f} ({total_label})")
+
+        # Check against configured target range
+        fmin, fmax = cfg.flesch_target
+        if fmin > 0 or fmax < 100:
+            if total_flesch < fmin or total_flesch > fmax:
+                print(
+                    f"  WARNUNG: Flesch-DE {total_flesch:.1f} liegt ausserhalb "
+                    f"des Zielbereichs [{fmin:.0f}, {fmax:.0f}]"
+                )
+                has_errors = True
+            else:
+                print(f"  Flesch-DE liegt im Zielbereich [{fmin:.0f}, {fmax:.0f}]")
 
     # --- Summary ---
     print()

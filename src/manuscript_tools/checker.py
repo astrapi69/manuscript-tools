@@ -340,6 +340,100 @@ def rule_non_german_quotes(text: str, path: Path) -> list[StyleViolation]:
 
 
 # ---------------------------------------------------------------------------
+# Factory functions (create rules with custom parameters)
+# ---------------------------------------------------------------------------
+
+
+def make_rule_max_sentence_length(max_words: int) -> StyleRule:
+    """Create a sentence length rule with a custom threshold."""
+
+    def _rule(text: str, path: Path) -> list[StyleViolation]:
+        violations: list[StyleViolation] = []
+        lines = text.splitlines()
+
+        for lineno, line in enumerate(lines, start=1):
+            stripped = line.strip()
+            if (
+                stripped.startswith("#")
+                or stripped.startswith("```")
+                or stripped.startswith(">")
+                or stripped.startswith("- ")
+                or stripped.startswith("* ")
+                or re.match(r"^\d+\.\s", stripped)
+            ):
+                continue
+
+            fragments = _SENTENCE_END.split(line)
+            for fragment in fragments:
+                words = _WORD_RE.findall(fragment)
+                if len(words) > max_words:
+                    violations.append(
+                        StyleViolation(
+                            file=path,
+                            rule="max-sentence-length",
+                            message=f"Satz mit {len(words)} Woertern (max {max_words})",
+                            line=lineno,
+                        )
+                    )
+        return violations
+
+    return _rule
+
+
+def make_rule_filler_words_de(extra_words: list[str] | None = None) -> StyleRule:
+    """Create a filler words rule with optional extra words."""
+    all_words = set(_FILLER_WORDS_DE)
+    if extra_words:
+        all_words.update(w.lower() for w in extra_words)
+
+    single = frozenset(w for w in all_words if " " not in w)
+    multi = frozenset(w for w in all_words if " " in w)
+
+    single_re = re.compile(
+        r"\b(" + "|".join(re.escape(w) for w in sorted(single)) + r")\b",
+        re.IGNORECASE,
+    )
+    multi_re = (
+        re.compile(
+            r"\b(" + "|".join(re.escape(w) for w in sorted(multi)) + r")\b",
+            re.IGNORECASE,
+        )
+        if multi
+        else None
+    )
+
+    def _rule(text: str, path: Path) -> list[StyleViolation]:
+        violations: list[StyleViolation] = []
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            stripped = line.strip()
+            if stripped.startswith("#") or stripped.startswith("```"):
+                continue
+
+            for m in single_re.finditer(line):
+                violations.append(
+                    StyleViolation(
+                        file=path,
+                        rule="filler-words-de",
+                        message=f"Fuellwort: '{m.group(1)}'",
+                        line=lineno,
+                    )
+                )
+            if multi_re:
+                for m in multi_re.finditer(line):
+                    violations.append(
+                        StyleViolation(
+                            file=path,
+                            rule="filler-words-de",
+                            message=f"Fuellwort: '{m.group(1)}'",
+                            line=lineno,
+                        )
+                    )
+        return violations
+
+    return _rule
+
+
+# ---------------------------------------------------------------------------
 # Rule sets
 # ---------------------------------------------------------------------------
 
@@ -364,6 +458,44 @@ DEFAULT_RULES: list[StyleRule] = [*CORE_RULES]
 
 # Full: core + prose (for thorough analysis)
 ALL_RULES_DE: list[StyleRule] = [*CORE_RULES, *PROSE_RULES_DE]
+
+# ---------------------------------------------------------------------------
+# Rule registry: maps rule names to callables
+# ---------------------------------------------------------------------------
+
+RULE_REGISTRY: dict[str, StyleRule] = {
+    "no-dashes": rule_no_dashes,
+    "no-invisible-chars": rule_no_invisible_chars,
+    "no-repeated-words": rule_no_repeated_words,
+    "no-double-spaces": rule_no_double_spaces,
+    "non-german-quotes": rule_non_german_quotes,
+    "max-sentence-length": rule_max_sentence_length,
+    "filler-words-de": rule_filler_words_de,
+    "passive-voice-de": rule_passive_voice_de,
+}
+
+# Names by group (for config resolution)
+CORE_RULE_NAMES: list[str] = [
+    "no-dashes",
+    "no-invisible-chars",
+    "no-repeated-words",
+    "no-double-spaces",
+    "non-german-quotes",
+]
+
+PROSE_RULE_NAMES: list[str] = [
+    "max-sentence-length",
+    "filler-words-de",
+    "passive-voice-de",
+]
+
+ALL_RULE_NAMES: list[str] = [*CORE_RULE_NAMES, *PROSE_RULE_NAMES]
+
+
+def resolve_rules(names: Sequence[str]) -> list[StyleRule]:
+    """Resolve a list of rule names to callables via the registry."""
+    return [RULE_REGISTRY[name] for name in names if name in RULE_REGISTRY]
+
 
 # ---------------------------------------------------------------------------
 # Public API
