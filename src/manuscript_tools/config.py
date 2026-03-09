@@ -182,7 +182,7 @@ def resolve_config(
         if (
             isinstance(val, list)
             and len(val) == 2
-            and all(isinstance(v, (int, float)) for v in val)
+            and all(isinstance(v, int | float) for v in val)
             and val[0] <= val[1]
         ):
             config.flesch_target = (float(val[0]), float(val[1]))
