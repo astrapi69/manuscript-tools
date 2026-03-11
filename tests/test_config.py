@@ -9,7 +9,7 @@ from manuscript_tools.config import resolve_config
 
 def test_default_core_rules() -> None:
     cfg = resolve_config(raw_config={})
-    assert len(cfg.active_rule_names) == 5
+    assert len(cfg.active_rule_names) == 6
     assert "no-dashes" in cfg.active_rule_names
     assert "non-german-quotes" in cfg.active_rule_names
     assert "filler-words-de" not in cfg.active_rule_names
@@ -18,7 +18,7 @@ def test_default_core_rules() -> None:
 
 def test_default_strict_rules() -> None:
     cfg = resolve_config(strict=True, raw_config={})
-    assert len(cfg.active_rule_names) == 8
+    assert len(cfg.active_rule_names) == 9
     assert "filler-words-de" in cfg.active_rule_names
     assert "passive-voice-de" in cfg.active_rule_names
 
@@ -31,7 +31,7 @@ def test_default_strict_rules() -> None:
 def test_rules_merge_with_defaults() -> None:
     cfg = resolve_config(raw_config={"rules": ["max-sentence-length"]})
     # Core (5) + 1 merged = 6
-    assert len(cfg.active_rule_names) == 6
+    assert len(cfg.active_rule_names) == 7
     assert "max-sentence-length" in cfg.active_rule_names
     assert "no-dashes" in cfg.active_rule_names
 
@@ -40,7 +40,7 @@ def test_rules_duplicate_with_default_no_double() -> None:
     cfg = resolve_config(raw_config={"rules": ["no-dashes"]})
     # Should not duplicate
     assert cfg.active_rule_names.count("no-dashes") == 1
-    assert len(cfg.active_rule_names) == 5
+    assert len(cfg.active_rule_names) == 6
 
 
 def test_rules_unknown_warns() -> None:
@@ -57,14 +57,14 @@ def test_rules_unknown_warns() -> None:
 def test_disable_removes_rule() -> None:
     cfg = resolve_config(raw_config={"disable": ["no-dashes"]})
     assert "no-dashes" not in cfg.active_rule_names
-    assert len(cfg.active_rule_names) == 4
+    assert len(cfg.active_rule_names) == 5
 
 
 def test_disable_multiple() -> None:
     cfg = resolve_config(raw_config={"disable": ["no-dashes", "no-double-spaces"]})
     assert "no-dashes" not in cfg.active_rule_names
     assert "no-double-spaces" not in cfg.active_rule_names
-    assert len(cfg.active_rule_names) == 3
+    assert len(cfg.active_rule_names) == 4
 
 
 def test_disable_unknown_warns() -> None:
@@ -78,7 +78,7 @@ def test_disable_strict_rule() -> None:
         raw_config={"disable": ["passive-voice-de"]},
     )
     assert "passive-voice-de" not in cfg.active_rule_names
-    assert len(cfg.active_rule_names) == 7
+    assert len(cfg.active_rule_names) == 8
 
 
 # ---------------------------------------------------------------------------
@@ -222,7 +222,7 @@ def test_custom_filler_words_creates_factory(tmp_path) -> None:
 
 def test_no_config_file() -> None:
     cfg = resolve_config(raw_config={})
-    assert len(cfg.active_rules) == 5
+    assert len(cfg.active_rules) == 6
     assert cfg.max_sentence_words == 40
     assert cfg.flesch_target == (0.0, 100.0)
     assert cfg.filler_words_extra == []
@@ -246,5 +246,5 @@ def test_combined_config() -> None:
     assert cfg.max_sentence_words == 30
     assert cfg.flesch_target == (65.0, 80.0)
     assert "mega" in cfg.filler_words_extra
-    # 8 total - 2 disabled = 6
-    assert len(cfg.active_rule_names) == 6
+    # 9 total - 2 disabled = 7
+    assert len(cfg.active_rule_names) == 7

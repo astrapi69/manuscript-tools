@@ -239,11 +239,11 @@ def test_custom_rules(tmp_path: Path) -> None:
 
 
 def test_core_rules_count() -> None:
-    assert len(CORE_RULES) == 5
+    assert len(CORE_RULES) == 6
 
 
 def test_all_rules_de_count() -> None:
-    assert len(ALL_RULES_DE) == 8
+    assert len(ALL_RULES_DE) == 9
 
 
 def test_missing_file(tmp_path: Path) -> None:

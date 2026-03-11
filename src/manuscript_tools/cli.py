@@ -1,7 +1,7 @@
 """CLI entry points for manuscript-tools.
 
 Registered as console_scripts via pyproject.toml:
-  ms-check, ms-sanitize, ms-quotes, ms-metrics, ms-validate
+  ms-check, ms-sanitize, ms-quotes, ms-format, ms-metrics, ms-validate
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from pathlib import Path
 
 from manuscript_tools.checker import check_files
 from manuscript_tools.config import resolve_config
+from manuscript_tools.formatting import fix_formatting_file
 from manuscript_tools.io import resolve_files
 from manuscript_tools.metrics import batch_readability, flesch_de_label
 from manuscript_tools.models import RunStats
@@ -220,6 +221,64 @@ def quotes() -> None:
 
 
 # ---------------------------------------------------------------------------
+# ms-format
+# ---------------------------------------------------------------------------
+
+
+def format_cmd() -> None:
+    """CLI: Fix broken bold/italic formatting from code formatters."""
+    parser = _base_parser(
+        "Fix broken Markdown bold/italic caused by line-wrapping formatters.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show changes without writing",
+    )
+    parser.add_argument(
+        "--no-backup",
+        action="store_true",
+        help="Do not create .bak files",
+    )
+    args = parser.parse_args()
+    files = _resolve_or_exit(args)
+
+    total_fixes = 0
+    files_changed = 0
+
+    for path in files:
+        result = fix_formatting_file(
+            path,
+            dry_run=args.dry_run,
+            backup=not args.no_backup,
+        )
+
+        if result.error:
+            print(f"FEHLER: {result.path} - {result.error}", file=sys.stderr)
+            continue
+
+        if result.changed:
+            verb = "WOULD FIX" if args.dry_run else "FIXED"
+            s = result.stats
+            print(f"{verb}: {result.path} ({s.broken_bold} bold, {s.broken_italic} italic)")
+            files_changed += 1
+            total_fixes += s.total_fixes
+        else:
+            print(f"OK: {result.path}")
+
+        for w in result.stats.warning_messages:
+            print(f"  WARNUNG: {w}", file=sys.stderr)
+
+    print("-" * 60)
+    print(
+        f"Dateien: {len(files)}, "
+        f"Korrigiert: {files_changed}, "
+        f"Fixes: {total_fixes}"
+        f"{' (dry-run)' if args.dry_run else ''}"
+    )
+
+
+# ---------------------------------------------------------------------------
 # ms-metrics
 # ---------------------------------------------------------------------------
 
@@ -359,10 +418,37 @@ def validate() -> None:
         print(f"  {quotes_count} Datei(en) mit nicht-deutschen Anführungszeichen.")
         print("  Tipp: --fix oder ms-quotes zum Korrigieren verwenden.")
 
-    # --- Phase 3: Style Check ---
+    # --- Phase 3: Formatting ---
     print()
     print("=" * 60)
-    print("PHASE 3: Style-Check (alle Regeln)")
+    print("PHASE 3: Formatierung (Bold/Italic)")
+    print("=" * 60)
+
+    format_count = 0
+    for path in files:
+        dry_run = not args.fix
+        result = fix_formatting_file(path, dry_run=dry_run, backup=args.fix)
+        if result.error:
+            print(f"FEHLER: {result.path} - {result.error}", file=sys.stderr)
+            has_errors = True
+        elif result.changed:
+            verb = "KORRIGIERT" if args.fix else "MUSS KORRIGIERT WERDEN"
+            s = result.stats
+            print(f"  {verb}: {result.path} ({s.broken_bold} bold, {s.broken_italic} italic)")
+            format_count += 1
+            if not args.fix:
+                has_errors = True
+
+    if format_count == 0:
+        print("  Keine gebrochenen Formatierungen.")
+    elif not args.fix:
+        print(f"  {format_count} Datei(en) mit gebrochener Formatierung.")
+        print("  Tipp: --fix oder ms-format zum Korrigieren verwenden.")
+
+    # --- Phase 4: Style Check ---
+    print()
+    print("=" * 60)
+    print("PHASE 4: Style-Check (alle Regeln)")
     print("=" * 60)
 
     reports = check_files(files, rules=cfg.active_rules)
@@ -388,10 +474,10 @@ def validate() -> None:
     else:
         print("  Keine Verstoesse.")
 
-    # --- Phase 4: Readability ---
+    # --- Phase 5: Readability ---
     print()
     print("=" * 60)
-    print("PHASE 4: Lesbarkeit")
+    print("PHASE 5: Lesbarkeit")
     print("=" * 60)
 
     readability_reports = batch_readability(files)

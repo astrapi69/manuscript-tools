@@ -340,6 +340,57 @@ def rule_non_german_quotes(text: str, path: Path) -> list[StyleViolation]:
 
 
 # ---------------------------------------------------------------------------
+# Broken formatting (line-wrapped bold/italic)
+# ---------------------------------------------------------------------------
+
+
+def rule_broken_formatting(text: str, path: Path) -> list[StyleViolation]:
+    """Flag broken bold/italic markers split across lines.
+
+    Detects cases where a code formatter (e.g. Eclipse) wrapped lines
+    inside **bold** or *italic* markers, causing asterisks to render literally.
+    Use ms-format to fix them automatically.
+    """
+    from manuscript_tools.formatting import has_broken_formatting
+
+    violations: list[StyleViolation] = []
+    lines = text.split("\n")
+    in_code_block = False
+    in_frontmatter = False
+
+    for lineno_0, line in enumerate(lines):
+        lineno = lineno_0 + 1
+        trimmed = line.strip()
+
+        if lineno_0 == 0 and trimmed == "---":
+            in_frontmatter = True
+            continue
+        if in_frontmatter and trimmed == "---":
+            in_frontmatter = False
+            continue
+        if in_frontmatter:
+            continue
+        if trimmed.startswith("```"):
+            in_code_block = not in_code_block
+            continue
+        if in_code_block:
+            continue
+
+        problems = has_broken_formatting(lines, lineno_0)
+        for msg in problems:
+            violations.append(
+                StyleViolation(
+                    file=path,
+                    rule="broken-formatting",
+                    message=msg,
+                    line=lineno,
+                )
+            )
+
+    return violations
+
+
+# ---------------------------------------------------------------------------
 # Factory functions (create rules with custom parameters)
 # ---------------------------------------------------------------------------
 
@@ -444,6 +495,7 @@ CORE_RULES: list[StyleRule] = [
     rule_no_repeated_words,
     rule_no_double_spaces,
     rule_non_german_quotes,
+    rule_broken_formatting,
 ]
 
 # German prose rules: advisory, may produce false positives
@@ -469,6 +521,7 @@ RULE_REGISTRY: dict[str, StyleRule] = {
     "no-repeated-words": rule_no_repeated_words,
     "no-double-spaces": rule_no_double_spaces,
     "non-german-quotes": rule_non_german_quotes,
+    "broken-formatting": rule_broken_formatting,
     "max-sentence-length": rule_max_sentence_length,
     "filler-words-de": rule_filler_words_de,
     "passive-voice-de": rule_passive_voice_de,
@@ -481,6 +534,7 @@ CORE_RULE_NAMES: list[str] = [
     "no-repeated-words",
     "no-double-spaces",
     "non-german-quotes",
+    "broken-formatting",
 ]
 
 PROSE_RULE_NAMES: list[str] = [

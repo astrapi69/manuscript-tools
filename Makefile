@@ -57,6 +57,14 @@ quotes: ## Fix German quotation marks
 quotes-dry: ## Preview quotation mark fixes
 	poetry run ms-quotes $(MANUSCRIPT) --include '$(INCLUDE)' $(_EXCLUDE_FLAGS) --dry-run
 
+.PHONY: format-md
+format-md: ## Fix broken bold/italic formatting
+	poetry run ms-format $(MANUSCRIPT) --include '$(INCLUDE)' $(_EXCLUDE_FLAGS)
+
+.PHONY: format-md-dry
+format-md-dry: ## Preview formatting fixes
+	poetry run ms-format $(MANUSCRIPT) --include '$(INCLUDE)' $(_EXCLUDE_FLAGS) --dry-run
+
 .PHONY: metrics
 metrics: ## Show word counts, readability and text metrics
 	poetry run ms-metrics $(MANUSCRIPT) --include '$(INCLUDE)' $(_EXCLUDE_FLAGS)

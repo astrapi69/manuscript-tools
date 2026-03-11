@@ -15,6 +15,7 @@ packages = [{ include = "manuscript_tools", from = "src" }]
 ms-check    = "manuscript_tools.cli:check"
 ms-sanitize = "manuscript_tools.cli:sanitize"
 ms-quotes   = "manuscript_tools.cli:quotes"
+ms-format   = "manuscript_tools.cli:format_cmd"
 ms-metrics  = "manuscript_tools.cli:metrics"
 ms-validate = "manuscript_tools.cli:validate"
 
