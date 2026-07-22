@@ -6,6 +6,7 @@ from manuscript_tools.checker import (
     ALL_RULES_DE,
     CORE_RULES,
     check_file,
+    rule_faked_dashes,
     rule_filler_words_de,
     rule_max_sentence_length,
     rule_no_double_spaces,
@@ -322,3 +323,121 @@ def test_strict_mode_file(tmp_path: Path) -> None:
     report_strict = check_file(f, rules=ALL_RULES_DE)
     assert report_default.ok
     assert not report_strict.ok
+
+
+# ---------------------------------------------------------------------------
+# rule_faked_dashes
+# ---------------------------------------------------------------------------
+#
+# The inverse of rule_no_dashes, deliberately. no-dashes forbids the dash
+# outright, which is the right policy for a manuscript that wants none. This
+# rule assumes the opposite: a dash is fine, it just has to be spelled as a
+# real U+2014 rather than faked with "--" or a spaced hyphen.
+#
+# The two therefore contradict each other by construction and must never both
+# be active, which is why this one stays out of CORE_RULES.
+#
+# False positives are the real risk here. German prose is full of hyphens
+# that must not be touched: compounds, list bullets, front matter, table
+# separators, CLI flags. Every one of those gets a test.
+
+
+def _dash_hits(text: str) -> list[str]:
+    return [v.message for v in rule_faked_dashes(text, Path("t.md"))]
+
+
+def test_faked_dashes_flags_double_hyphen_between_words() -> None:
+    assert _dash_hits("Der Hund lief -- und bellte.\n")
+
+
+def test_faked_dashes_flags_double_hyphen_without_spaces() -> None:
+    assert _dash_hits("Der Hund--er war jung--lief los.\n")
+
+
+def test_faked_dashes_flags_spaced_hyphen_as_a_pause() -> None:
+    assert _dash_hits("Der Hund lief - und bellte dabei.\n")
+
+
+def test_faked_dashes_ignores_a_real_em_dash() -> None:
+    """A correctly set dash is the TARGET state, never a finding."""
+    assert _dash_hits("Der Hund lief \u2014 und bellte.\n") == []
+
+
+def test_faked_dashes_ignores_a_real_en_dash() -> None:
+    assert _dash_hits("Seiten 10\u201320 sind gemeint.\n") == []
+
+
+def test_faked_dashes_ignores_compound_hyphens() -> None:
+    """The single most common hyphen in German, and never a dash."""
+    assert _dash_hits("Ein framework-agnostisches Kosten-Nutzen-Verhältnis.\n") == []
+
+
+def test_faked_dashes_ignores_list_bullets() -> None:
+    assert _dash_hits("- erster Punkt\n- zweiter Punkt\n  - eingerückt\n") == []
+
+
+def test_faked_dashes_finds_a_faked_dash_inside_a_list_item() -> None:
+    """Only the bullet marker is exempt, not the prose after it.
+
+    Phase 1 against real text caught this: skipping the whole line missed
+    three of seven known cases, all of them inside bullets.
+    """
+    assert _dash_hits("- Der Hund lief - und bellte dabei.\\n")
+
+
+def test_faked_dashes_still_ignores_the_bullet_marker_itself() -> None:
+    assert _dash_hits("- erster Punkt\\n- zweiter Punkt\\n") == []
+
+
+def test_faked_dashes_ignores_horizontal_rules_and_front_matter() -> None:
+    assert _dash_hits("---\ntitle: Test\n---\n\nText.\n\n---\n") == []
+
+
+def test_faked_dashes_ignores_table_separators() -> None:
+    assert _dash_hits("| a | b |\n|---|---|\n| 1 | 2 |\n") == []
+
+
+def test_faked_dashes_ignores_cli_flags() -> None:
+    assert _dash_hits("Nutze ms-sanitize --dry-run vor dem Schreiben.\n") == []
+
+
+def test_faked_dashes_ignores_code_fences() -> None:
+    """Code is not prose; a -- inside it is an operator or a flag."""
+    text = "Text.\n\n```shell\ngrep -- muster datei\nx = a--b\n```\n\nText.\n"
+    assert _dash_hits(text) == []
+
+
+def test_faked_dashes_ignores_inline_code() -> None:
+    assert _dash_hits("Der Schalter `--dry-run` zeigt die Änderungen.\n") == []
+
+
+def test_faked_dashes_ignores_german_suffix_hyphen_next_to_inline_code() -> None:
+    """Removing inline code must not CREATE a gap that looks like a dash.
+
+    "`matching`- und `free_text`-Strukturen" is correct German suffix
+    hyphenation. Deleting the code spans outright turned it into
+    "dieselben - und -Strukturen", which the spaced-hyphen pattern then
+    matched. Phase 1 against the real articles caught this.
+    """
+    text = "Es sind dieselben `matching`- und `free_text`-Strukturen.\\n"
+    assert _dash_hits(text) == []
+
+
+def test_faked_dashes_ignores_numeric_ranges() -> None:
+    """Deliberately excluded: a spaced hyphen between numbers reads as a
+    range, and flagging it would cost more in false positives than it gains."""
+    assert _dash_hits("Die Version 1.7 - 1.8 ist gemeint.\n") == []
+
+
+def test_faked_dashes_message_names_the_faked_form() -> None:
+    """The author has to see WHICH form was found to fix it."""
+    hits = _dash_hits("Der Hund lief -- und bellte.\n")
+    assert "--" in hits[0]
+
+
+def test_faked_dashes_is_not_a_core_rule() -> None:
+    """It contradicts no-dashes, so it must never run by default."""
+    from manuscript_tools.checker import CORE_RULE_NAMES, RULE_REGISTRY
+
+    assert "faked-dashes" in RULE_REGISTRY
+    assert "faked-dashes" not in CORE_RULE_NAMES
