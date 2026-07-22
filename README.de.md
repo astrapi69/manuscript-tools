@@ -23,6 +23,7 @@ poetry add manuscript-tools
 | `ms-check` | Style-Checks (6 Core-Regeln, `--strict` fügt 3 Prosa-Regeln hinzu) |
 | `ms-sanitize` | Encoding reparieren, unsichtbare Zeichen entfernen, Unicode normalisieren |
 | `ms-quotes` | Anführungszeichen in deutsche Typografie konvertieren „ " ‚ ' |
+| `ms-dashes` | Gefakte Gedankenstriche (`--`, gespationierter Bindestrich) durch echte ersetzen (`--to em\|en`) |
 | `ms-format` | Gebrochenes Bold/Italic von zeilenumbrechenden Formatierern reparieren |
 | `ms-metrics` | Wortzahl, Satzanalyse, Flesch-DE Lesbarkeitsindex |
 | `ms-validate` | Volle QA-Pipeline (Sanitize + Quotes + Formatierung + Check + Lesbarkeit) |
@@ -47,6 +48,9 @@ ms-quotes manuscript/ --dry-run
 
 # Gebrochenes Bold/Italic reparieren (Vorschau)
 ms-format manuscript/ --dry-run
+
+# -- und gespationierte Bindestriche zu Halbgeviertstrichen (Vorschau)
+ms-dashes manuscript/ --to en --dry-run
 ```
 
 ## Dateiauswahl
@@ -125,6 +129,10 @@ Oder alles in einem Durchlauf: `ms-validate kapitel-01.md --fix`.
 
 `max-sentence-length`, `filler-words-de`, `passive-voice-de`
 
+**Opt-in** (über `rules = ["faked-dashes"]` in der Konfiguration):
+
+`faked-dashes` — findet `--` und gespationierte Bindestriche, die einen echten Gedankenstrich ersetzen sollen. Widerspricht bewusst `no-dashes` (eine Regel verbietet Gedankenstriche, die andere verlangt korrekt gesetzte) — eine aktivieren, die andere deaktivieren. `ms-dashes --to em|en` schreibt die Funde um.
+
 Eigene Regeln sind einfache Callables mit der Signatur `(text: str, path: Path) -> list[StyleViolation]`. Das [Wiki](https://github.com/astrapi69/manuscript-tools/wiki/03-Eigene-Regeln) enthält ein Schritt-für-Schritt-Tutorial.
 
 ## Konfiguration
@@ -159,7 +167,7 @@ Keine Konfiguration = alle Defaults. `rules` wird mit Defaults zusammengeführt 
 git clone https://github.com/astrapi69/manuscript-tools.git
 cd manuscript-tools
 make install-dev
-make ci          # Lint + Format-Check + 137 Tests
+make ci          # Lint + Format-Check + 175 Tests
 ```
 
 ## Dokumentation

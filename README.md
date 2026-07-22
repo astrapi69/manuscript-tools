@@ -23,6 +23,7 @@ poetry add manuscript-tools
 | `ms-check` | Style checks (6 core rules, `--strict` adds 3 prose rules) |
 | `ms-sanitize` | Fix encoding, strip invisible chars, normalize Unicode |
 | `ms-quotes` | Convert quotation marks to German typographic style „ " ‚ ' |
+| `ms-dashes` | Rewrite faked dashes (`--`, spaced hyphen) to a real dash (`--to em\|en`) |
 | `ms-format` | Fix broken bold/italic caused by line-wrapping formatters |
 | `ms-metrics` | Word counts, sentence analysis, Flesch-DE readability score |
 | `ms-validate` | Full QA pipeline (sanitize + quotes + formatting + check + readability) |
@@ -47,6 +48,9 @@ ms-quotes manuscript/ --dry-run
 
 # Fix broken bold/italic formatting (dry-run)
 ms-format manuscript/ --dry-run
+
+# Rewrite -- and spaced hyphens to en-dashes (German typography, dry-run)
+ms-dashes manuscript/ --to en --dry-run
 ```
 
 ## File selection
@@ -125,6 +129,10 @@ Or run the whole pipeline in one go: `ms-validate kapitel-01.md --fix`.
 
 `max-sentence-length`, `filler-words-de`, `passive-voice-de`
 
+**Opt-in** (via `rules = ["faked-dashes"]` in the configuration):
+
+`faked-dashes` — flags `--` and spaced hyphens standing in for a real dash. By design it contradicts `no-dashes` (one forbids dashes, the other demands correctly typed ones), so enable one and disable the other. `ms-dashes --to em|en` rewrites the findings.
+
 Custom rules are simple callables with the signature `(text: str, path: Path) -> list[StyleViolation]`. See the [Wiki](https://github.com/astrapi69/manuscript-tools/wiki/03-Eigene-Regeln) for a step-by-step tutorial.
 
 ## Configuration
@@ -159,7 +167,7 @@ No config = all defaults. `rules` merges with defaults (union). `disable` remove
 git clone https://github.com/astrapi69/manuscript-tools.git
 cd manuscript-tools
 make install-dev
-make ci          # lint + format check + 137 tests
+make ci          # lint + format check + 175 tests
 ```
 
 ## Documentation
