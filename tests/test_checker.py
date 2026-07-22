@@ -72,6 +72,22 @@ def test_no_invisible_chars_matches_what_the_sanitizer_removes(tmp_path: Path) -
         assert violations, f"{char!r} (U+{ord(char):04X}) not reported"
 
 
+def test_no_invisible_chars_covers_the_cf_format_block(tmp_path: Path) -> None:
+    """U+2060-206F is invisible in full and was missing entirely.
+
+    The block holds the word joiner, the invisible math operators a formula
+    editor pastes, the bidi isolates modern editors emit in place of the
+    older embeddings, and the deprecated format characters. All are Unicode
+    general category Cf, all render as nothing, and all arrive by copying
+    from the web.
+    """
+    for codepoint in (0x2060, 0x2061, 0x2064, 0x2066, 0x2069, 0x206F):
+        f = tmp_path / "cf.md"
+        f.write_text(f"A{chr(codepoint)}B\n", encoding="utf-8")
+        violations = rule_no_invisible_chars(f.read_text(encoding="utf-8"), f)
+        assert violations, f"U+{codepoint:04X} not reported"
+
+
 def test_no_invisible_chars_names_the_codepoint(tmp_path: Path) -> None:
     """"Unsichtbare Zeichen gefunden" is not actionable on its own.
 

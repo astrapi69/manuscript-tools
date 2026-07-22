@@ -48,6 +48,11 @@ FORMAT_CODEPOINTS: tuple[int, ...] = (
     0x202D,  # LEFT-TO-RIGHT OVERRIDE
     0x202E,  # RIGHT-TO-LEFT OVERRIDE
     0xFEFF,  # ZERO WIDTH NO-BREAK SPACE / BOM
+    # U+2060-206F in full: word joiner, the invisible math operators a
+    # formula editor pastes (2061-2064), the bidi isolates modern editors
+    # emit in place of the embeddings above (2066-2069), and the deprecated
+    # format characters (206A-206F). All are general category Cf.
+    *range(0x2060, 0x2070),
 )
 
 #: Invisible characters the sanitizer rewrites rather than drops.
