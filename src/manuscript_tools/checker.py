@@ -72,6 +72,83 @@ def rule_no_invisible_chars(text: str, path: Path) -> list[StyleViolation]:
 
 
 # ---------------------------------------------------------------------------
+# Faked dashes ("--" or a spaced hyphen standing in for an em-dash)
+# ---------------------------------------------------------------------------
+#
+# The inverse of rule_no_dashes, deliberately. That rule forbids the dash
+# outright, which is right for a manuscript that wants none. This one assumes
+# the opposite policy: a dash is legitimate punctuation, it just has to be
+# spelled as a real U+2014 instead of being faked.
+#
+# The two contradict each other by construction, so this rule stays out of
+# CORE_RULES and is opt-in via `rules = ["faked-dashes"]`.
+#
+# Everything below exists to avoid false positives. German prose is full of
+# hyphens that are not dashes, and flagging those would make the rule useless.
+
+#: ``--`` between two words, spaced or not. A CLI flag (``--dry-run``) has a
+#: space before but a letter after, so neither alternative matches it, and
+#: ``---`` is excluded outright as a rule or front-matter delimiter.
+_DOUBLE_HYPHEN = re.compile(r"(?<!-)(?:(?<=\w)--(?=\w)|(?<=\s)--(?=\s))(?!-)")
+
+#: A spaced hyphen between two non-space characters, i.e. used as a pause.
+#: Digits on both sides read as a range and are left alone on purpose.
+_SPACED_HYPHEN = re.compile(r"(?<=\S) - (?=\S)")
+
+_FENCE = re.compile(r"^\s*```")
+_INLINE_CODE = re.compile(r"`[^`]*`")
+_BULLET = re.compile(r"^\s*[-*+]\s")
+_TABLE_OR_RULE = re.compile(r"^\s*(\|.*\||-{3,}\s*|\|?\s*:?-{2,}.*)$")
+_NUMERIC_RANGE = re.compile(r"\d\s-\s\d")
+
+
+def rule_faked_dashes(text: str, path: Path) -> list[StyleViolation]:
+    """Flag ``--`` and spaced hyphens standing in for a real em-dash.
+
+    A correctly set ``\u2014`` is the TARGET state and never a finding; only
+    the faked spellings are. Skips code fences, inline code, list bullets,
+    table separators, horizontal rules, front matter and numeric ranges, all
+    of which contain hyphens that are not dashes.
+    """
+    violations: list[StyleViolation] = []
+    in_fence = False
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        if _FENCE.match(line):
+            in_fence = not in_fence
+            continue
+        if in_fence or _TABLE_OR_RULE.match(line):
+            continue
+        # Only the bullet MARKER is exempt; the prose after it is ordinary
+        # text and can carry a faked dash like any other sentence.
+        stripped = _BULLET.sub("", line, count=1)
+        # Placeholder, not deletion: removing a code span outright can join
+        # its neighbours into a gap that looks like a dash, e.g.
+        # "`matching`- und `free_text`-" collapsing to " - und -".
+        stripped = _INLINE_CODE.sub("X", stripped)
+        if _NUMERIC_RANGE.search(stripped):
+            stripped = _NUMERIC_RANGE.sub("", stripped)
+        found = []
+        if _DOUBLE_HYPHEN.search(stripped):
+            found.append('"--"')
+        if _SPACED_HYPHEN.search(stripped):
+            found.append('" - "')
+        if found:
+            violations.append(
+                StyleViolation(
+                    file=path,
+                    rule="faked-dashes",
+                    message=(
+                        "Gefälschter Gedankenstrich gefunden ("
+                        + ", ".join(found)
+                        + "); ein echter Gedankenstrich wird als \u2014 geschrieben"
+                    ),
+                    line=lineno,
+                )
+            )
+    return violations
+
+
+# ---------------------------------------------------------------------------
 # Repeated words ("der der", "und und", "the the")
 # ---------------------------------------------------------------------------
 
@@ -532,6 +609,7 @@ ALL_RULES_DE: list[StyleRule] = [*CORE_RULES, *PROSE_RULES_DE]
 
 RULE_REGISTRY: dict[str, StyleRule] = {
     "no-dashes": rule_no_dashes,
+    "faked-dashes": rule_faked_dashes,
     "no-invisible-chars": rule_no_invisible_chars,
     "no-repeated-words": rule_no_repeated_words,
     "no-double-spaces": rule_no_double_spaces,
