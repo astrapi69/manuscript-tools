@@ -20,11 +20,12 @@ poetry add manuscript-tools
 
 | Command | Description |
 |---|---|
-| `ms-check` | Style checks (5 core rules, `--strict` adds 3 prose rules) |
+| `ms-check` | Style checks (6 core rules, `--strict` adds 3 prose rules) |
 | `ms-sanitize` | Fix encoding, strip invisible chars, normalize Unicode |
 | `ms-quotes` | Convert quotation marks to German typographic style „ " ‚ ' |
+| `ms-format` | Fix broken bold/italic caused by line-wrapping formatters |
 | `ms-metrics` | Word counts, sentence analysis, Flesch-DE readability score |
-| `ms-validate` | Full QA pipeline (sanitize + quotes + check + readability) |
+| `ms-validate` | Full QA pipeline (sanitize + quotes + formatting + check + readability) |
 
 ## Quick start
 
@@ -43,13 +44,67 @@ ms-metrics manuscript/
 
 # Fix quotation marks (dry-run)
 ms-quotes manuscript/ --dry-run
+
+# Fix broken bold/italic formatting (dry-run)
+ms-format manuscript/ --dry-run
 ```
+
+## Example
+
+A manuscript with typical artifacts from AI tools, copy-paste, or code formatters — line 1 contains an invisible zero-width space (U+200B) after "Test":
+
+```markdown
+Das ist ein Test mit unsichtbarem Zeichen.
+
+Er sagte: "Hallo Welt" und ging.
+
+Dies ist ein **
+wichtiger Satz** im Text.
+```
+
+`ms-check` reports every problem with file, line, and rule — invisible characters are named by codepoint:
+
+```console
+$ ms-check kapitel-01.md
+FAIL: kapitel-01.md:1 [no-invisible-chars] Unsichtbare Unicode-Zeichen gefunden: U+200B ZERO WIDTH SPACE
+FAIL: kapitel-01.md:3 [non-german-quotes] Nicht-deutsche Anführungszeichen gefunden
+FAIL: kapitel-01.md:5 [broken-formatting] Oeffnendes ** am Zeilenende (Formatierung gebrochen)
+------------------------------------------------------------
+Dateien: 1, Woerter: 21
+Status: FEHLER (1 Dateien, 3 Verstoss(e))
+```
+
+Fix step by step — every fixer supports `--dry-run` (preview) and writes `.bak` backups:
+
+```console
+$ ms-sanitize kapitel-01.md
+CLEANED: kapitel-01.md
+$ ms-quotes kapitel-01.md
+FIXED: kapitel-01.md (1 Ersetzung(en))
+$ ms-format kapitel-01.md
+FIXED: kapitel-01.md (1 bold, 0 italic)
+$ ms-check kapitel-01.md
+OK: kapitel-01.md (20 Woerter)
+Status: OK
+```
+
+Result:
+
+```markdown
+Das ist ein Test mit unsichtbarem Zeichen.
+
+Er sagte: „Hallo Welt“ und ging.
+
+Dies ist ein **wichtiger Satz** im Text.
+```
+
+Or run the whole pipeline in one go: `ms-validate kapitel-01.md --fix`.
 
 ## Rules
 
 **Core** (always active):
 
-`no-dashes`, `no-invisible-chars`, `no-repeated-words`, `no-double-spaces`, `non-german-quotes`
+`no-dashes`, `no-invisible-chars`, `no-repeated-words`, `no-double-spaces`, `non-german-quotes`, `broken-formatting`
 
 **Prose** (with `--strict` or `ms-validate`):
 
@@ -89,7 +144,7 @@ No config = all defaults. `rules` merges with defaults (union). `disable` remove
 git clone https://github.com/astrapi69/manuscript-tools.git
 cd manuscript-tools
 make install-dev
-make ci          # lint + format check + 112 tests
+make ci          # lint + format check + 137 tests
 ```
 
 ## Documentation
