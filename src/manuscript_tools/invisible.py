@@ -82,9 +82,7 @@ REPLACE_MAP: dict[str, str] = {
 }
 
 #: Everything a reader cannot see.
-INVISIBLE_CHARS: frozenset[str] = frozenset(
-    FORMAT_CHARS | {chr(cp) for cp in REWRITTEN_CODEPOINTS}
-)
+INVISIBLE_CHARS: frozenset[str] = frozenset(FORMAT_CHARS | {chr(cp) for cp in REWRITTEN_CODEPOINTS})
 
 INVISIBLE_RE = re.compile(
     "["

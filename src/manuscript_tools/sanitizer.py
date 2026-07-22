@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 import shutil
 import unicodedata
 from pathlib import Path

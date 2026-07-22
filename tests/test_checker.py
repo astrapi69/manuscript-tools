@@ -89,7 +89,7 @@ def test_no_invisible_chars_covers_the_cf_format_block(tmp_path: Path) -> None:
 
 
 def test_no_invisible_chars_names_the_codepoint(tmp_path: Path) -> None:
-    """"Unsichtbare Zeichen gefunden" is not actionable on its own.
+    """ "Unsichtbare Zeichen gefunden" is not actionable on its own.
 
     The character cannot be seen in an editor, so the message has to say
     which one it is and where it sits.
