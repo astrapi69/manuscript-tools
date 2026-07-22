@@ -6,6 +6,7 @@ import re
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
+from manuscript_tools.invisible import INVISIBLE_RE, describe
 from manuscript_tools.io import read_text
 from manuscript_tools.models import FileReport, StyleViolation
 
@@ -37,23 +38,37 @@ def rule_no_dashes(text: str, path: Path) -> list[StyleViolation]:
     return violations
 
 
-_ZWSP_PATTERN = re.compile(r"[\u200b\u200c\u200d\u200e\u200f\ufeff]")
-
-
 def rule_no_invisible_chars(text: str, path: Path) -> list[StyleViolation]:
-    """Flag zero-width and invisible Unicode characters."""
-    violations: list[StyleViolation] = []
-    for lineno, line in enumerate(text.splitlines(), start=1):
-        if _ZWSP_PATTERN.search(line):
-            violations.append(
-                StyleViolation(
-                    file=path,
-                    rule="no-invisible-chars",
-                    message="Unsichtbare Unicode-Zeichen gefunden",
-                    line=lineno,
-                )
-            )
-    return violations
+    """Flag characters a reader cannot see.
+
+    The set comes from ``manuscript_tools.invisible`` rather than a local
+    copy, so this rule cannot end up narrower than what ``ms-sanitize``
+    strips. That mattered: it previously reported nothing on a file the
+    sanitizer would have cleaned, and ``ms-check`` is the report-only entry
+    point people trust to tell them a file is fine.
+
+    Scanning runs over the WHOLE text, not line by line. ``str.splitlines``
+    treats U+2028, U+2029, \v, \f, \x1c-\x1e and \x85 as line boundaries and
+    consumes them, so a per-line scan can never see those characters at all.
+    Line numbers are counted from the match offset instead.
+
+    The message names the codepoint, because "unsichtbare Zeichen gefunden"
+    is not actionable when the character cannot be seen in an editor.
+    """
+    by_line: dict[int, set[str]] = {}
+    for match in INVISIBLE_RE.finditer(text):
+        lineno = text.count("\n", 0, match.start()) + 1
+        by_line.setdefault(lineno, set()).add(match.group())
+    return [
+        StyleViolation(
+            file=path,
+            rule="no-invisible-chars",
+            message="Unsichtbare Unicode-Zeichen gefunden: "
+            + ", ".join(describe(char) for char in sorted(found)),
+            line=lineno,
+        )
+        for lineno, found in sorted(by_line.items())
+    ]
 
 
 # ---------------------------------------------------------------------------
