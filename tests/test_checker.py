@@ -57,6 +57,52 @@ def test_no_invisible_chars_zwsp(tmp_path: Path) -> None:
     assert violations[0].rule == "no-invisible-chars"
 
 
+def test_no_invisible_chars_matches_what_the_sanitizer_removes(tmp_path: Path) -> None:
+    """The checker must not be narrower than the sanitizer.
+
+    ms-check is the report-only entry point: a user runs it, sees a clean
+    result and concludes the file is fine. If ms-sanitize would still change
+    the file, that conclusion was wrong. Every character the sanitizer strips
+    therefore has to be reported here.
+    """
+    for char in ("\u00ad", "\u202e", "\u0007", "\u2028", "\u007f"):
+        f = tmp_path / "probe.md"
+        f.write_text(f"Wort{char}Wort\n", encoding="utf-8")
+        violations = rule_no_invisible_chars(f.read_text(encoding="utf-8"), f)
+        assert violations, f"{char!r} (U+{ord(char):04X}) not reported"
+
+
+def test_no_invisible_chars_names_the_codepoint(tmp_path: Path) -> None:
+    """"Unsichtbare Zeichen gefunden" is not actionable on its own.
+
+    The character cannot be seen in an editor, so the message has to say
+    which one it is and where it sits.
+    """
+    f = tmp_path / "zwsp.md"
+    f.write_text("Zero\u200bWidth\n", encoding="utf-8")
+    violations = rule_no_invisible_chars(f.read_text(encoding="utf-8"), f)
+    assert "U+200B" in violations[0].message
+
+
+def test_no_invisible_chars_keeps_tab_newline_and_cr(tmp_path: Path) -> None:
+    """Ordinary whitespace is text, not a finding."""
+    f = tmp_path / "clean.md"
+    f.write_text("Zeile eins\nSpalte\teins\r\nEnde\n", encoding="utf-8")
+    assert rule_no_invisible_chars(f.read_text(encoding="utf-8"), f) == []
+
+
+def test_no_invisible_chars_keeps_no_break_spaces(tmp_path: Path) -> None:
+    """A no-break space is visible whitespace and legitimate typography.
+
+    French sets one before "?" and "!". The sanitizer normalises it to a
+    plain space, which is a different concern from invisibility; reporting it
+    here would make the rule fire on correctly typeset prose.
+    """
+    f = tmp_path / "french.md"
+    f.write_text("Comment \u00e7a va\u00a0?\n1\u202f000 W\u00f6rter\n", encoding="utf-8")
+    assert rule_no_invisible_chars(f.read_text(encoding="utf-8"), f) == []
+
+
 # ---------------------------------------------------------------------------
 # rule_no_repeated_words
 # ---------------------------------------------------------------------------

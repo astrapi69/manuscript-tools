@@ -9,6 +9,11 @@ from pathlib import Path
 
 import ftfy
 
+from manuscript_tools.invisible import (
+    CONTROL_CHARS_RE,
+    FORMAT_CHARS,
+    REPLACE_MAP,
+)
 from manuscript_tools.io import read_text
 from manuscript_tools.models import SanitizeResult
 
@@ -16,33 +21,11 @@ from manuscript_tools.models import SanitizeResult
 # Character maps
 # ---------------------------------------------------------------------------
 
-_CONTROL_CHARS_RE = re.compile(
-    r"[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]"
-)  # preserves \t (0009), \n (000A), \r (000D)
-
-_FORMAT_CHARS: frozenset[str] = frozenset(
-    {
-        "\u200b",  # ZWSP
-        "\u200c",  # ZWNJ
-        "\u200d",  # ZWJ
-        "\u200e",  # LRM
-        "\u200f",  # RLM
-        "\u202a",
-        "\u202b",
-        "\u202c",
-        "\u202d",
-        "\u202e",  # bidi overrides
-        "\ufeff",  # BOM
-    }
-)
-
-_REPLACE_MAP: dict[str, str] = {
-    "\u00ad": "",  # soft hyphen
-    "\u2028": "\n",  # line separator
-    "\u2029": "\n",  # paragraph separator
-    "\u202f": " ",  # narrow no-break space
-    "\u00a0": " ",  # no-break space
-}
+# The canonical sets live in ``invisible`` so the checker cannot drift
+# narrower than the sanitizer again. Names kept for the code below.
+_CONTROL_CHARS_RE = CONTROL_CHARS_RE
+_FORMAT_CHARS = FORMAT_CHARS
+_REPLACE_MAP = REPLACE_MAP
 
 
 # ---------------------------------------------------------------------------
