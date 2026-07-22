@@ -19,7 +19,6 @@ cases, so there is no default.
 from pathlib import Path
 
 import pytest
-
 from manuscript_tools.dashes import DashTarget, normalize_dashes, normalize_file
 
 
