@@ -12,6 +12,7 @@ from pathlib import Path
 
 from manuscript_tools.checker import check_files
 from manuscript_tools.config import resolve_config
+from manuscript_tools.dashes import DashTarget, normalize_file
 from manuscript_tools.formatting import fix_formatting_file
 from manuscript_tools.io import resolve_files
 from manuscript_tools.metrics import batch_readability, flesch_de_label
@@ -210,6 +211,68 @@ def quotes() -> None:
 
         for w in result.stats.warning_messages:
             print(f"  WARNUNG: {w}", file=sys.stderr)
+
+    print("-" * 60)
+    print(
+        f"Dateien: {len(files)}, "
+        f"Korrigiert: {files_changed}, "
+        f"Ersetzungen: {total_replacements}"
+        f"{' (dry-run)' if args.dry_run else ''}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# ms-dashes
+# ---------------------------------------------------------------------------
+
+
+def dashes() -> None:
+    """CLI: Rewrite faked dashes ("--", spaced hyphen) to a real dash.
+
+    ``--to`` is required. There is no correct default: English style wants the
+    em-dash, German typography the en-dash, and a corpus that forbids dashes
+    outright wants neither and should use ``ms-check`` plus a human editor.
+    """
+    parser = _base_parser(
+        "Rewrite faked dashes to a real dash. Choose the target with --to.",
+    )
+    parser.add_argument(
+        "--to",
+        required=True,
+        choices=["em", "en"],
+        help="Target dash: em (\u2014, English style) or en (\u2013, German Halbgeviertstrich)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show changes without writing",
+    )
+    parser.add_argument(
+        "--no-backup",
+        action="store_true",
+        help="Do not create .bak files",
+    )
+    args = parser.parse_args()
+    files = _resolve_or_exit(args)
+
+    target = DashTarget.EM if args.to == "em" else DashTarget.EN
+    total_replacements = 0
+    files_changed = 0
+
+    for path in files:
+        result = normalize_file(
+            path,
+            target,
+            dry_run=args.dry_run,
+            backup=not args.no_backup,
+        )
+        if result.changed:
+            verb = "WOULD FIX" if args.dry_run else "FIXED"
+            print(f"{verb}: {result.path} ({result.replacements} Ersetzung(en))")
+            files_changed += 1
+            total_replacements += result.replacements
+        else:
+            print(f"OK: {result.path}")
 
     print("-" * 60)
     print(
