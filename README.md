@@ -49,6 +49,21 @@ ms-quotes manuscript/ --dry-run
 ms-format manuscript/ --dry-run
 ```
 
+## File selection
+
+Not limited to Markdown. Directories are scanned with the glob `**/*.md` by default; a single file passed as argument is processed as-is, regardless of extension:
+
+```bash
+# Single file: no glob filter applied
+ms-check brief.txt
+
+# Directory with other extensions: override the glob
+ms-sanitize docs/ --include '**/*.txt'
+ms-check kapitel/ --include '**/*.tex' --exclude '**/build/**'
+```
+
+Files must be UTF-8 text (txt, tex, rst, html, ...) — binary formats like docx or pdf are not supported. The `broken-formatting` rule checks Markdown `**`/`*` markers; for non-Markdown files it is harmless, or disable it via `disable = ["broken-formatting"]` in the [configuration](#configuration).
+
 ## Example
 
 A manuscript with typical artifacts from AI tools, copy-paste, or code formatters — line 1 contains an invisible zero-width space (U+200B) after "Test":

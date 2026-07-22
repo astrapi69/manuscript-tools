@@ -49,6 +49,21 @@ ms-quotes manuscript/ --dry-run
 ms-format manuscript/ --dry-run
 ```
 
+## Dateiauswahl
+
+Nicht auf Markdown beschränkt. Verzeichnisse werden per Default mit dem Glob `**/*.md` durchsucht; eine einzelne Datei als Argument wird unabhängig von der Endung direkt verarbeitet:
+
+```bash
+# Einzeldatei: kein Glob-Filter
+ms-check brief.txt
+
+# Verzeichnis mit anderen Endungen: Glob überschreiben
+ms-sanitize docs/ --include '**/*.txt'
+ms-check kapitel/ --include '**/*.tex' --exclude '**/build/**'
+```
+
+Dateien müssen UTF-8-Text sein (txt, tex, rst, html, ...) — Binärformate wie docx oder pdf werden nicht unterstützt. Die Regel `broken-formatting` prüft Markdown-Marker (`**`/`*`); bei Nicht-Markdown-Dateien ist sie harmlos oder lässt sich per `disable = ["broken-formatting"]` in der [Konfiguration](#konfiguration) abschalten.
+
 ## Beispiel
 
 Ein Manuskript mit typischen Artefakten aus AI-Tools, Copy-Paste oder Code-Formatierern — Zeile 1 enthält ein unsichtbares Zero-Width Space (U+200B) nach „Test":
