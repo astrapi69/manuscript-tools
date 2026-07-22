@@ -131,7 +131,13 @@ Or run the whole pipeline in one go: `ms-validate kapitel-01.md --fix`.
 
 **Opt-in** (via `rules = ["faked-dashes"]` in the configuration):
 
-`faked-dashes` — flags `--` and spaced hyphens standing in for a real dash. By design it contradicts `no-dashes` (one forbids dashes, the other demands correctly typed ones), so enable one and disable the other. `ms-dashes --to em|en` rewrites the findings.
+`faked-dashes` — flags `--` and spaced hyphens standing in for a real dash. By design it contradicts `no-dashes` (one forbids dashes, the other demands correctly typed ones), so enable one and disable the other. `ms-dashes --to em|en` rewrites the findings:
+
+```text
+Er kam -- wie immer -- viel zu spaet.      # before
+Er kam – wie immer – viel zu spaet.        # after ms-dashes --to en
+Seiten 12 - 15 behandeln das Thema.        # numeric ranges stay untouched
+```
 
 Custom rules are simple callables with the signature `(text: str, path: Path) -> list[StyleViolation]`. See the [Wiki](https://github.com/astrapi69/manuscript-tools/wiki/03-Eigene-Regeln) for a step-by-step tutorial.
 

@@ -131,7 +131,13 @@ Oder alles in einem Durchlauf: `ms-validate kapitel-01.md --fix`.
 
 **Opt-in** (über `rules = ["faked-dashes"]` in der Konfiguration):
 
-`faked-dashes` — findet `--` und gespationierte Bindestriche, die einen echten Gedankenstrich ersetzen sollen. Widerspricht bewusst `no-dashes` (eine Regel verbietet Gedankenstriche, die andere verlangt korrekt gesetzte) — eine aktivieren, die andere deaktivieren. `ms-dashes --to em|en` schreibt die Funde um.
+`faked-dashes` — findet `--` und gespationierte Bindestriche, die einen echten Gedankenstrich ersetzen sollen. Widerspricht bewusst `no-dashes` (eine Regel verbietet Gedankenstriche, die andere verlangt korrekt gesetzte) — eine aktivieren, die andere deaktivieren. `ms-dashes --to em|en` schreibt die Funde um:
+
+```text
+Er kam -- wie immer -- viel zu spaet.      # vorher
+Er kam – wie immer – viel zu spaet.        # nachher ms-dashes --to en
+Seiten 12 - 15 behandeln das Thema.        # Zahlenbereiche bleiben unangetastet
+```
 
 Eigene Regeln sind einfache Callables mit der Signatur `(text: str, path: Path) -> list[StyleViolation]`. Das [Wiki](https://github.com/astrapi69/manuscript-tools/wiki/03-Eigene-Regeln) enthält ein Schritt-für-Schritt-Tutorial.
 
