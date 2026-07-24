@@ -101,14 +101,22 @@ _BULLET = re.compile(r"^\s*[-*+]\s")
 _TABLE_OR_RULE = re.compile(r"^\s*(\|.*\||-{3,}\s*|\|?\s*:?-{2,}.*)$")
 _NUMERIC_RANGE = re.compile(r"\d\s-\s\d")
 
+#: A markdown link/image target: ``](...)``. Badge slugs escape hyphens as
+#: ``--`` (shields.io ``CC--BY--SA--4.0``), and a URL is not prose anyway.
+_LINK_TARGET = re.compile(r"\]\([^)]*\)")
+
+#: A bare or ``<...>``-autolinked URL outside a link target.
+_BARE_URL = re.compile(r"<?\bhttps?://[^\s>]+>?")
+
 
 def rule_faked_dashes(text: str, path: Path) -> list[StyleViolation]:
     """Flag ``--`` and spaced hyphens standing in for a real em-dash.
 
     A correctly set ``\u2014`` is the TARGET state and never a finding; only
     the faked spellings are. Skips code fences, inline code, list bullets,
-    table separators, horizontal rules, front matter and numeric ranges, all
-    of which contain hyphens that are not dashes.
+    table separators, horizontal rules, front matter, numeric ranges and
+    URLs (link targets, autolinks, bare), all of which contain hyphens that
+    are not dashes.
     """
     violations: list[StyleViolation] = []
     in_fence = False
@@ -125,6 +133,8 @@ def rule_faked_dashes(text: str, path: Path) -> list[StyleViolation]:
         # its neighbours into a gap that looks like a dash, e.g.
         # "`matching`- und `free_text`-" collapsing to " - und -".
         stripped = _INLINE_CODE.sub("X", stripped)
+        stripped = _LINK_TARGET.sub("](X)", stripped)
+        stripped = _BARE_URL.sub("X", stripped)
         if _NUMERIC_RANGE.search(stripped):
             stripped = _NUMERIC_RANGE.sub("", stripped)
         found = []

@@ -393,6 +393,33 @@ def test_faked_dashes_ignores_horizontal_rules_and_front_matter() -> None:
     assert _dash_hits("---\ntitle: Test\n---\n\nText.\n\n---\n") == []
 
 
+def test_faked_dashes_ignores_a_shields_badge_url() -> None:
+    """Escaped hyphens in a badge slug are URL syntax, not a faked dash.
+
+    The only false positive in 74 findings of the adaptive-learner sweep
+    (issue #4).
+    """
+    line = (
+        "[![License: CC BY-SA 4.0]"
+        "(https://img.shields.io/badge/license-CC--BY--SA--4.0-blue)](LICENSE)\n"
+    )
+    assert _dash_hits(line) == []
+
+
+def test_faked_dashes_ignores_a_bare_url() -> None:
+    assert _dash_hits("Siehe https://example.com/a--b fuer Details.\n") == []
+
+
+def test_faked_dashes_ignores_an_autolink() -> None:
+    assert _dash_hits("Siehe <https://example.com/a--b> fuer Details.\n") == []
+
+
+def test_faked_dashes_still_flags_prose_next_to_a_url() -> None:
+    """Masking the URL must not hide a faked dash elsewhere on the line."""
+    line = "Das Badge [x](https://img.shields.io/badge/a--b) fehlt -- leider.\n"
+    assert _dash_hits(line)
+
+
 def test_faked_dashes_ignores_table_separators() -> None:
     assert _dash_hits("| a | b |\n|---|---|\n| 1 | 2 |\n") == []
 
