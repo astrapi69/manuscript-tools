@@ -28,6 +28,28 @@ def test_rewrites_a_spaced_hyphen_to_the_em_dash() -> None:
     )
 
 
+def test_leaves_a_shields_badge_url_untouched() -> None:
+    """Escaped hyphens in a badge slug are URL syntax; rewriting them would
+    corrupt the link (issue #4)."""
+    line = (
+        "[![License: CC BY-SA 4.0]"
+        "(https://img.shields.io/badge/license-CC--BY--SA--4.0-blue)](LICENSE)\n"
+    )
+    assert normalize_dashes(line, DashTarget.EN) == line
+
+
+def test_leaves_a_bare_url_untouched() -> None:
+    text = "Siehe https://example.com/a--b fuer Details.\n"
+    assert normalize_dashes(text, DashTarget.EN) == text
+
+
+def test_rewrites_prose_but_not_the_url_on_the_same_line() -> None:
+    text = "Das Badge [x](https://img.shields.io/badge/a--b) fehlt -- leider.\n"
+    assert normalize_dashes(text, DashTarget.EN) == (
+        "Das Badge [x](https://img.shields.io/badge/a--b) fehlt – leider.\n"
+    )
+
+
 def test_rewrites_a_spaced_hyphen_to_the_en_dash() -> None:
     """German typography sets the pause dash as a Halbgeviertstrich."""
     assert normalize_dashes("Der Hund lief - und bellte.\n", DashTarget.EN) == (

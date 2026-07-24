@@ -29,10 +29,12 @@ from enum import Enum
 from pathlib import Path
 
 from manuscript_tools.checker import (
+    _BARE_URL,
     _BULLET,
     _DOUBLE_HYPHEN,
     _FENCE,
     _INLINE_CODE,
+    _LINK_TARGET,
     _NUMERIC_RANGE,
     _SPACED_HYPHEN,
     _TABLE_OR_RULE,
@@ -57,8 +59,11 @@ class DashResult:
 
 
 def _protected_spans(line: str) -> list[tuple[int, int]]:
-    """Ranges of the line that must not be rewritten (inline code)."""
-    return [(m.start(), m.end()) for m in _INLINE_CODE.finditer(line)]
+    """Ranges of the line that must not be rewritten (inline code, URLs)."""
+    spans = [(m.start(), m.end()) for m in _INLINE_CODE.finditer(line)]
+    spans += [(m.start(), m.end()) for m in _LINK_TARGET.finditer(line)]
+    spans += [(m.start(), m.end()) for m in _BARE_URL.finditer(line)]
+    return spans
 
 
 def _outside(spans: list[tuple[int, int]], start: int, end: int) -> bool:
@@ -93,9 +98,9 @@ def normalize_dashes(text: str, target: DashTarget) -> str:
     """Rewrite every faked dash in ``text`` to ``target``.
 
     Skips exactly what the detector skips: code fences, inline code, bullet
-    markers, table separators, horizontal rules, front matter and numeric
-    ranges. A fixer that edited those would damage correct text rather than
-    merely report noise.
+    markers, table separators, horizontal rules, front matter, numeric
+    ranges and URLs (link targets, autolinks, bare). A fixer that edited
+    those would damage correct text rather than merely report noise.
     """
     out: list[str] = []
     in_fence = False
