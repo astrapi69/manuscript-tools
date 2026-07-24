@@ -137,6 +137,7 @@ Oder alles in einem Durchlauf: `ms-validate kapitel-01.md --fix`.
 Er kam -- wie immer -- viel zu spaet.      # vorher
 Er kam – wie immer – viel zu spaet.        # nachher ms-dashes --to en
 Seiten 12 - 15 behandeln das Thema.        # Zahlenbereiche bleiben unangetastet
+[x](https://img.shields.io/badge/a--b)     # URLs und Badge-Slugs bleiben unangetastet
 ```
 
 Eigene Regeln sind einfache Callables mit der Signatur `(text: str, path: Path) -> list[StyleViolation]`. Das [Wiki](https://github.com/astrapi69/manuscript-tools/wiki/03-Eigene-Regeln) enthält ein Schritt-für-Schritt-Tutorial.
@@ -173,7 +174,7 @@ Keine Konfiguration = alle Defaults. `rules` wird mit Defaults zusammengeführt 
 git clone https://github.com/astrapi69/manuscript-tools.git
 cd manuscript-tools
 make install-dev
-make ci          # Lint + Format-Check + 175 Tests
+make ci          # Lint + Format-Check + 182 Tests
 ```
 
 ## Dokumentation

@@ -137,6 +137,7 @@ Or run the whole pipeline in one go: `ms-validate kapitel-01.md --fix`.
 Er kam -- wie immer -- viel zu spaet.      # before
 Er kam – wie immer – viel zu spaet.        # after ms-dashes --to en
 Seiten 12 - 15 behandeln das Thema.        # numeric ranges stay untouched
+[x](https://img.shields.io/badge/a--b)     # URLs and badge slugs stay untouched
 ```
 
 Custom rules are simple callables with the signature `(text: str, path: Path) -> list[StyleViolation]`. See the [Wiki](https://github.com/astrapi69/manuscript-tools/wiki/03-Eigene-Regeln) for a step-by-step tutorial.
@@ -173,7 +174,7 @@ No config = all defaults. `rules` merges with defaults (union). `disable` remove
 git clone https://github.com/astrapi69/manuscript-tools.git
 cd manuscript-tools
 make install-dev
-make ci          # lint + format check + 175 tests
+make ci          # lint + format check + 182 tests
 ```
 
 ## Documentation
