@@ -1,6 +1,6 @@
 [project]
 name = "manuscript-tools"
-version = "0.8.0"
+version = "0.8.1"
 description = "Validation, sanitization and metrics for Markdown manuscripts."
 readme = "README.md"
 [[project.authors]]
