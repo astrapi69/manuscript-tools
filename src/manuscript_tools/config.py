@@ -31,6 +31,7 @@ from manuscript_tools.checker import (
     CORE_RULE_NAMES,
     RULE_REGISTRY,
     StyleRule,
+    make_rule_ascii_umlauts,
     make_rule_filler_words_de,
     make_rule_max_sentence_length,
     resolve_rules,
@@ -50,6 +51,7 @@ class ManuscriptConfig:
     max_sentence_words: int = 40
     flesch_target: tuple[float, float] = (0.0, 100.0)
     filler_words_extra: list[str] = field(default_factory=list)
+    umlaut_words_extra: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
 
@@ -202,6 +204,16 @@ def resolve_config(
                 f"erhalten: {val!r}. Ignoriert."
             )
 
+    if "umlaut-words-extra" in raw:
+        val = raw["umlaut-words-extra"]
+        if isinstance(val, list) and all(isinstance(v, str) for v in val):
+            config.umlaut_words_extra = [w.lower() for w in val]
+        else:
+            config.warnings.append(
+                f"'umlaut-words-extra' muss eine Liste von Strings sein, "
+                f"erhalten: {val!r}. Ignoriert."
+            )
+
     # --- Step 6: Override rules with configured variants ---
     if config.max_sentence_words != 40 and "max-sentence-length" in active_names:
         custom_rule = make_rule_max_sentence_length(config.max_sentence_words)
@@ -211,6 +223,11 @@ def resolve_config(
     if config.filler_words_extra and "filler-words-de" in active_names:
         custom_rule = make_rule_filler_words_de(config.filler_words_extra)
         idx = active_names.index("filler-words-de")
+        config.active_rules[idx] = custom_rule
+
+    if config.umlaut_words_extra and "ascii-umlauts" in active_names:
+        custom_rule = make_rule_ascii_umlauts(config.umlaut_words_extra)
+        idx = active_names.index("ascii-umlauts")
         config.active_rules[idx] = custom_rule
 
     return config

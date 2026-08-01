@@ -24,6 +24,7 @@ poetry add manuscript-tools
 | `ms-sanitize` | Fix encoding, strip invisible chars, normalize Unicode |
 | `ms-quotes` | Convert quotation marks to German typographic style „ " ‚ ' |
 | `ms-dashes` | Rewrite faked dashes (`--`, spaced hyphen) to a real dash (`--to em\|en`) |
+| `ms-umlauts` | Rewrite ASCII umlauts (`fuer` to `für`) from a curated word list |
 | `ms-format` | Fix broken bold/italic caused by line-wrapping formatters |
 | `ms-metrics` | Word counts, sentence analysis, Flesch-DE readability score |
 | `ms-validate` | Full QA pipeline (sanitize + quotes + formatting + check + readability) |
@@ -51,6 +52,9 @@ ms-format manuscript/ --dry-run
 
 # Rewrite -- and spaced hyphens to en-dashes (German typography, dry-run)
 ms-dashes manuscript/ --to en --dry-run
+
+# Rewrite ASCII umlauts like "fuer" and "Uebung" (dry-run)
+ms-umlauts manuscript/ --dry-run
 ```
 
 ## File selection
@@ -129,7 +133,7 @@ Or run the whole pipeline in one go: `ms-validate kapitel-01.md --fix`.
 
 `max-sentence-length`, `filler-words-de`, `passive-voice-de`
 
-**Opt-in** (via `rules = ["faked-dashes"]` in the configuration):
+**Opt-in** (via `rules = [...]` in the configuration):
 
 `faked-dashes` — flags `--` and spaced hyphens standing in for a real dash. By design it contradicts `no-dashes` (one forbids dashes, the other demands correctly typed ones), so enable one and disable the other. `ms-dashes --to em|en` rewrites the findings:
 
@@ -138,6 +142,14 @@ Er kam -- wie immer -- viel zu spaet.      # before
 Er kam – wie immer – viel zu spaet.        # after ms-dashes --to en
 Seiten 12 - 15 behandeln das Thema.        # numeric ranges stay untouched
 [x](https://img.shields.io/badge/a--b)     # URLs and badge slugs stay untouched
+```
+
+`ascii-umlauts` — flags ASCII umlaut spellings (`fuer`, `Uebung`) from a curated word list; `ms-umlauts` rewrites them. Deliberately not a pattern: German is full of legitimate ae/oe/ue sequences ("Frauen", "Goethe", "Aerobic"), so only vetted whole words are touched — zero false positives by construction. Extend the list per project via `umlaut-words-extra = ["oekologie"]`. `ss` to `ß` is out of scope (context-dependent, Swiss orthography conflict).
+
+```text
+Das waere natuerlich schoen fuer alle.     # before
+Das wäre natürlich schön für alle.         # after ms-umlauts
+Goethe traf die Frauen beim Feuer.         # names and diphthongs stay untouched
 ```
 
 Custom rules are simple callables with the signature `(text: str, path: Path) -> list[StyleViolation]`. See the [Wiki](https://github.com/astrapi69/manuscript-tools/wiki/03-Eigene-Regeln) for a step-by-step tutorial.
@@ -153,6 +165,7 @@ disable = ["passive-voice-de"]           # remove from active set
 max-sentence-words = 30                  # default: 40
 flesch-target = [65, 80]                 # warn if outside range
 filler-words-extra = ["definitiv", "absolut"]  # extend filler list
+umlaut-words-extra = ["oekologie"]       # extend the ascii-umlauts word list
 ```
 
 No config = all defaults. `rules` merges with defaults (union). `disable` removes from the active set and takes precedence over `rules`. See the [Wiki](https://github.com/astrapi69/manuscript-tools/wiki/09-Konfiguration) for details.
@@ -174,7 +187,7 @@ No config = all defaults. `rules` merges with defaults (union). `disable` remove
 git clone https://github.com/astrapi69/manuscript-tools.git
 cd manuscript-tools
 make install-dev
-make ci          # lint + format check + 182 tests
+make ci          # lint + format check + 208 tests
 ```
 
 ## Documentation
