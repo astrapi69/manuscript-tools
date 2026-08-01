@@ -159,6 +159,186 @@ def rule_faked_dashes(text: str, path: Path) -> list[StyleViolation]:
 
 
 # ---------------------------------------------------------------------------
+# ASCII umlauts ("fuer" instead of "für") — opt-in, curated word list
+# ---------------------------------------------------------------------------
+# A substring pattern like "[aou]e" cannot work here: German is full of
+# legitimate ae/oe/ue sequences — diphthong plus e ("Frauen", "Feuer",
+# "neue"), names ("Goethe", "Michael") and loanwords ("Aerobic", "Poesie").
+# Trialling exactly that pattern destroyed 17 of 21 sample words. Only
+# whole tokens from a curated list are ever touched: zero false positives
+# by construction. The list contains no proper names and no ss-words
+# ("groesser" would need ß, which is context-dependent and out of scope).
+
+_UMLAUT_SUBSTITUTIONS = (("ae", "ä"), ("oe", "ö"), ("ue", "ü"))
+
+#: Every entry is vetted: all of its ae/oe/ue are umlauts, none a diphthong.
+UMLAUT_WORDS: frozenset[str] = frozenset(
+    {
+        "aehnlich",
+        "aendern",
+        "aenderung",
+        "aenderungen",
+        "aerger",
+        "aerzte",
+        "erklaerung",
+        "erklaerungen",
+        "frueh",
+        "frueher",
+        "fruehstueck",
+        "fuenf",
+        "fuer",
+        "gefuehl",
+        "gefuehle",
+        "gegenueber",
+        "gemuetlich",
+        "glueck",
+        "gluecklich",
+        "gruen",
+        "gruende",
+        "gruendlich",
+        "haette",
+        "haetten",
+        "hoechste",
+        "hoechstens",
+        "hoeher",
+        "koennen",
+        "koennte",
+        "koennten",
+        "kuenftig",
+        "kuenstlich",
+        "laenger",
+        "laengst",
+        "loesung",
+        "loesungen",
+        "maenner",
+        "moechte",
+        "moechten",
+        "moeglich",
+        "moeglichkeit",
+        "moeglichkeiten",
+        "muede",
+        "muehe",
+        "muessen",
+        "muesste",
+        "muessten",
+        "natuerlich",
+        "noetig",
+        "nuetzlich",
+        "oeffentlich",
+        "oefter",
+        "oekonomisch",
+        "pruefen",
+        "pruefung",
+        "pruefungen",
+        "ruecksicht",
+        "schoen",
+        "spaet",
+        "spaeter",
+        "spaetestens",
+        "staerke",
+        "staerker",
+        "tuer",
+        "tueren",
+        "ueber",
+        "ueberall",
+        "ueberhaupt",
+        "uebrigens",
+        "uebung",
+        "uebungen",
+        "unmoeglich",
+        "waehrend",
+        "waere",
+        "waeren",
+        "wuerde",
+        "wuerden",
+        "wuensche",
+        "wuenschen",
+        "zufaellig",
+        "zunaechst",
+        "zurueck",
+        "zusaetzlich",
+    }
+)
+
+
+def _match_case(original: str, replacement: str) -> str:
+    """Carry the casing of *original* over to *replacement*."""
+    if original.isupper() and len(original) > 1:
+        return replacement.upper()
+    if original[:1].isupper():
+        return replacement[:1].upper() + replacement[1:]
+    return replacement
+
+
+def umlautify(word: str) -> str:
+    """Rewrite the ae/oe/ue in a CURATED word to real umlauts.
+
+    Only safe for vetted words: applied to arbitrary text this produces
+    "Fraün". Casing is preserved (fuer/Fuer/FUER -> für/Für/FÜR).
+    """
+    result = word.lower()
+    for ascii_form, umlaut in _UMLAUT_SUBSTITUTIONS:
+        result = result.replace(ascii_form, umlaut)
+    return _match_case(word, result)
+
+
+def build_umlaut_pattern(extra_words: Sequence[str] = ()) -> re.Pattern[str]:
+    """Whole-word pattern over the curated list plus *extra_words*."""
+    words = UMLAUT_WORDS.union(w.lower() for w in extra_words)
+    alternation = "|".join(re.escape(w) for w in sorted(words, key=len, reverse=True))
+    return re.compile(rf"\b({alternation})\b", re.IGNORECASE)
+
+
+def _ascii_umlaut_violations(
+    text: str, path: Path, pattern: re.Pattern[str]
+) -> list[StyleViolation]:
+    violations: list[StyleViolation] = []
+    in_fence = False
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        if _FENCE.match(line):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        # Code, link targets and URLs keep their ASCII spellings: an
+        # identifier or slug containing "fuer" must not be reported.
+        scanned = _INLINE_CODE.sub("X", line)
+        scanned = _LINK_TARGET.sub("](X)", scanned)
+        scanned = _BARE_URL.sub("X", scanned)
+        found = [m.group(0) for m in pattern.finditer(scanned)]
+        if found:
+            listing = ", ".join(f'"{w}" (gemeint: "{umlautify(w)}")' for w in found)
+            violations.append(
+                StyleViolation(
+                    file=path,
+                    rule="ascii-umlauts",
+                    message="ASCII-Umlaut gefunden: " + listing,
+                    line=lineno,
+                )
+            )
+    return violations
+
+
+def rule_ascii_umlauts(text: str, path: Path) -> list[StyleViolation]:
+    """Flag ASCII umlaut spellings ("fuer", "Uebung") from the curated list.
+
+    Opt-in via ``rules = ["ascii-umlauts"]``; ``ms-umlauts`` rewrites the
+    findings with the same list, so detector and fixer cannot disagree.
+    """
+    return _ascii_umlaut_violations(text, path, build_umlaut_pattern())
+
+
+def make_rule_ascii_umlauts(extra_words: list[str] | None = None) -> StyleRule:
+    """Create an ascii-umlauts rule extended by ``umlaut-words-extra``."""
+    pattern = build_umlaut_pattern(extra_words or ())
+
+    def _rule(text: str, path: Path) -> list[StyleViolation]:
+        return _ascii_umlaut_violations(text, path, pattern)
+
+    return _rule
+
+
+# ---------------------------------------------------------------------------
 # Repeated words ("der der", "und und", "the the")
 # ---------------------------------------------------------------------------
 
@@ -620,6 +800,7 @@ ALL_RULES_DE: list[StyleRule] = [*CORE_RULES, *PROSE_RULES_DE]
 RULE_REGISTRY: dict[str, StyleRule] = {
     "no-dashes": rule_no_dashes,
     "faked-dashes": rule_faked_dashes,
+    "ascii-umlauts": rule_ascii_umlauts,
     "no-invisible-chars": rule_no_invisible_chars,
     "no-repeated-words": rule_no_repeated_words,
     "no-double-spaces": rule_no_double_spaces,

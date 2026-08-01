@@ -24,6 +24,7 @@ poetry add manuscript-tools
 | `ms-sanitize` | Encoding reparieren, unsichtbare Zeichen entfernen, Unicode normalisieren |
 | `ms-quotes` | Anführungszeichen in deutsche Typografie konvertieren „ " ‚ ' |
 | `ms-dashes` | Gefakte Gedankenstriche (`--`, gespationierter Bindestrich) durch echte ersetzen (`--to em\|en`) |
+| `ms-umlauts` | ASCII-Umlaute (`fuer` zu `für`) per kuratierter Wortliste ersetzen |
 | `ms-format` | Gebrochenes Bold/Italic von zeilenumbrechenden Formatierern reparieren |
 | `ms-metrics` | Wortzahl, Satzanalyse, Flesch-DE Lesbarkeitsindex |
 | `ms-validate` | Volle QA-Pipeline (Sanitize + Quotes + Formatierung + Check + Lesbarkeit) |
@@ -51,6 +52,9 @@ ms-format manuscript/ --dry-run
 
 # -- und gespationierte Bindestriche zu Halbgeviertstrichen (Vorschau)
 ms-dashes manuscript/ --to en --dry-run
+
+# ASCII-Umlaute wie "fuer" und "Uebung" ersetzen (Vorschau)
+ms-umlauts manuscript/ --dry-run
 ```
 
 ## Dateiauswahl
@@ -129,7 +133,7 @@ Oder alles in einem Durchlauf: `ms-validate kapitel-01.md --fix`.
 
 `max-sentence-length`, `filler-words-de`, `passive-voice-de`
 
-**Opt-in** (über `rules = ["faked-dashes"]` in der Konfiguration):
+**Opt-in** (über `rules = [...]` in der Konfiguration):
 
 `faked-dashes` — findet `--` und gespationierte Bindestriche, die einen echten Gedankenstrich ersetzen sollen. Widerspricht bewusst `no-dashes` (eine Regel verbietet Gedankenstriche, die andere verlangt korrekt gesetzte) — eine aktivieren, die andere deaktivieren. `ms-dashes --to em|en` schreibt die Funde um:
 
@@ -138,6 +142,14 @@ Er kam -- wie immer -- viel zu spaet.      # vorher
 Er kam – wie immer – viel zu spaet.        # nachher ms-dashes --to en
 Seiten 12 - 15 behandeln das Thema.        # Zahlenbereiche bleiben unangetastet
 [x](https://img.shields.io/badge/a--b)     # URLs und Badge-Slugs bleiben unangetastet
+```
+
+`ascii-umlauts` — findet ASCII-Umlaut-Schreibweisen (`fuer`, `Uebung`) aus kuratierter Wortliste; `ms-umlauts` schreibt sie um. Bewusst kein Pattern: Deutsch ist voller legitimer ae/oe/ue-Folgen („Frauen", „Goethe", „Aerobic"), darum werden nur geprüfte ganze Wörter angefasst — null False Positives per Konstruktion. Projektspezifisch erweiterbar über `umlaut-words-extra = ["oekologie"]`. `ss` zu `ß` bleibt außen vor (kontextabhängig, Schweiz-Konflikt).
+
+```text
+Das waere natuerlich schoen fuer alle.     # vorher
+Das wäre natürlich schön für alle.         # nachher ms-umlauts
+Goethe traf die Frauen beim Feuer.         # Namen und Diphthonge bleiben unangetastet
 ```
 
 Eigene Regeln sind einfache Callables mit der Signatur `(text: str, path: Path) -> list[StyleViolation]`. Das [Wiki](https://github.com/astrapi69/manuscript-tools/wiki/03-Eigene-Regeln) enthält ein Schritt-für-Schritt-Tutorial.
@@ -153,6 +165,7 @@ disable = ["passive-voice-de"]           # aus aktivem Set entfernen
 max-sentence-words = 30                  # Default: 40
 flesch-target = [65, 80]                 # warnen wenn ausserhalb
 filler-words-extra = ["definitiv", "absolut"]  # Füllwortliste erweitern
+umlaut-words-extra = ["oekologie"]       # ascii-umlauts-Wortliste erweitern
 ```
 
 Keine Konfiguration = alle Defaults. `rules` wird mit Defaults zusammengeführt (Union). `disable` entfernt aus dem aktiven Set und hat Vorrang vor `rules`. Details im [Wiki](https://github.com/astrapi69/manuscript-tools/wiki/09-Konfiguration).
@@ -174,7 +187,7 @@ Keine Konfiguration = alle Defaults. `rules` wird mit Defaults zusammengeführt 
 git clone https://github.com/astrapi69/manuscript-tools.git
 cd manuscript-tools
 make install-dev
-make ci          # Lint + Format-Check + 182 Tests
+make ci          # Lint + Format-Check + 208 Tests
 ```
 
 ## Dokumentation

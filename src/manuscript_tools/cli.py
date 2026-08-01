@@ -1,7 +1,8 @@
 """CLI entry points for manuscript-tools.
 
 Registered as console_scripts via pyproject.toml:
-  ms-check, ms-sanitize, ms-quotes, ms-format, ms-metrics, ms-validate
+  ms-check, ms-sanitize, ms-quotes, ms-dashes, ms-umlauts, ms-format,
+  ms-metrics, ms-validate
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from manuscript_tools.metrics import batch_readability, flesch_de_label
 from manuscript_tools.models import RunStats
 from manuscript_tools.quotes import convert_file
 from manuscript_tools.sanitizer import sanitize_file
+from manuscript_tools.umlauts import fix_file as fix_umlauts_file
 
 # ---------------------------------------------------------------------------
 # Shared argument helpers
@@ -266,6 +268,62 @@ def dashes() -> None:
             dry_run=args.dry_run,
             backup=not args.no_backup,
         )
+        if result.changed:
+            verb = "WOULD FIX" if args.dry_run else "FIXED"
+            print(f"{verb}: {result.path} ({result.replacements} Ersetzung(en))")
+            files_changed += 1
+            total_replacements += result.replacements
+        else:
+            print(f"OK: {result.path}")
+
+    print("-" * 60)
+    print(
+        f"Dateien: {len(files)}, "
+        f"Korrigiert: {files_changed}, "
+        f"Ersetzungen: {total_replacements}"
+        f"{' (dry-run)' if args.dry_run else ''}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# ms-umlauts
+# ---------------------------------------------------------------------------
+
+
+def umlauts() -> None:
+    """CLI: Rewrite ASCII umlaut spellings (fuer -> für), curated list only."""
+    parser = _base_parser(
+        "Rewrite ASCII umlauts (ae/oe/ue) to real umlauts. Curated word "
+        "list plus umlaut-words-extra from [tool.manuscript-tools].",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show changes without writing",
+    )
+    parser.add_argument(
+        "--no-backup",
+        action="store_true",
+        help="Do not create .bak files",
+    )
+    args = parser.parse_args()
+    files = _resolve_or_exit(args)
+
+    cfg = resolve_config()
+    for w in cfg.warnings:
+        print(f"CONFIG: {w}", file=sys.stderr)
+
+    total_replacements = 0
+    files_changed = 0
+
+    for path in files:
+        result = fix_umlauts_file(
+            path,
+            extra_words=cfg.umlaut_words_extra,
+            dry_run=args.dry_run,
+            backup=not args.no_backup,
+        )
+
         if result.changed:
             verb = "WOULD FIX" if args.dry_run else "FIXED"
             print(f"{verb}: {result.path} ({result.replacements} Ersetzung(en))")
