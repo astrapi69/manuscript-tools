@@ -213,3 +213,76 @@ def test_a_clean_file_is_not_rewritten(tmp_path: Path) -> None:
     result = fix_file(f)
     assert not result.changed
     assert not (tmp_path / "t.md.bak").exists()
+
+
+# ---------------------------------------------------------------------------
+# Documented limitations: high precision, deliberately incomplete recall.
+# These tests turn would-be bug reports into known, guaranteed behaviour.
+# ---------------------------------------------------------------------------
+
+
+def test_unlisted_compounds_stay_by_design() -> None:
+    """The whole-word pattern never fires inside a compound.
+
+    "kaefig" is on the list, "Vogelkaefig" is not — and \\b keeps the
+    listed word from matching inside it. Not a bug: the fix is to add
+    the compound to umlaut-words-extra.
+    """
+    text = "Der Vogelkaefig steht im Nebengebaeude.\n"
+    assert _fixed(text) == text
+    assert _hits(text) == []
+
+
+def test_ss_is_never_touched() -> None:
+    """ss -> ß is out of scope: context-dependent (Masse vs. Maße) and
+    wrong for Swiss orthography. No rule, no rewrite, ever."""
+    text = "Die Strasse war gross und die Masse an Wasser floss.\n"
+    assert _fixed(text) == text
+    assert _hits(text) == []
+
+
+def test_umlautify_leaves_ss_alone() -> None:
+    """Why "aeusserst" is NOT on the list: umlautify would produce
+    "äusserst", but Duden wants "äußerst" — half a fix is worse than
+    none, so ss-words stay off the list entirely."""
+    from manuscript_tools.checker import UMLAUT_WORDS
+
+    assert umlautify("aeusserst") == "äusserst"
+    assert "aeusserst" not in UMLAUT_WORDS
+
+
+def test_hyphenated_word_across_lines_is_ignored() -> None:
+    """A word split at a line break ("Ue-\\nbertragung") is invisible to
+    the line-based scan. Known limitation; joining hyphenated words is
+    a pre-processing concern, not an umlaut fixer's."""
+    text = "Das ist eine Ue-\nbertragung.\n"
+    assert _fixed(text) == text
+    assert _hits(text) == []
+
+
+def test_aeu_resolves_to_aeu_umlaut() -> None:
+    """ "aeu" must become "äu": the ae half is replaced, the remaining
+    eu is a diphthong and stays. Guards the substitution order in
+    umlautify against future refactoring."""
+    assert umlautify("haeufig") == "häufig"
+    assert umlautify("Haeufig") == "Häufig"
+    assert _fixed("Das passiert haeufig.\n") == "Das passiert häufig.\n"
+
+
+def test_swiss_spelling_is_replaced_only_if_the_user_lists_it() -> None:
+    """Swiss official spelling ("Mueller", "Zuerich") is legally valid.
+    The core list contains no proper names for exactly that reason; a
+    user who adds them via extra_words takes over that judgement."""
+    rewritten, n = replace_ascii_umlauts(
+        "Herr Mueller aus Zuerich.\n", extra_words=["mueller", "zuerich"]
+    )
+    assert rewritten == "Herr Müller aus Zürich.\n"
+    assert n == 2
+    text = "Herr Mueller aus Zuerich.\n"
+    assert _fixed(text) == text
+
+
+def test_compound_sentence_with_three_replacements() -> None:
+    assert _fixed("Die Aenderung der Gruende war noetig.\n") == (
+        "Die Änderung der Gründe war nötig.\n"
+    )
