@@ -328,9 +328,9 @@ def rule_ascii_umlauts(text: str, path: Path) -> list[StyleViolation]:
     return _ascii_umlaut_violations(text, path, build_umlaut_pattern())
 
 
-def make_rule_ascii_umlauts(extra_words: list[str] | None = None) -> StyleRule:
+def make_rule_ascii_umlauts(extra_words: Sequence[str] = ()) -> StyleRule:
     """Create an ascii-umlauts rule extended by ``umlaut-words-extra``."""
-    pattern = build_umlaut_pattern(extra_words or ())
+    pattern = build_umlaut_pattern(extra_words)
 
     def _rule(text: str, path: Path) -> list[StyleViolation]:
         return _ascii_umlaut_violations(text, path, pattern)
