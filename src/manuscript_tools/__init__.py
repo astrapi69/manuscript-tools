@@ -1,3 +1,3 @@
 """manuscript-tools - Validation, sanitization and metrics for Markdown manuscripts."""
 
-__version__ = "0.8.1"
+__version__ = "0.9.0"
