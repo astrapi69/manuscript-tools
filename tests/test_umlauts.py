@@ -286,3 +286,79 @@ def test_compound_sentence_with_three_replacements() -> None:
     assert _fixed("Die Aenderung der Gruende war noetig.\n") == (
         "Die Änderung der Gründe war nötig.\n"
     )
+
+
+# ---------------------------------------------------------------------------
+# Coverage classes: one test per word family the list must span
+# ---------------------------------------------------------------------------
+
+
+def test_covers_modal_verb_forms() -> None:
+    assert _fixed("Wir koennten und muessten, sie duerften und wuerden.\n") == (
+        "Wir könnten und müssten, sie dürften und würden.\n"
+    )
+
+
+def test_covers_irregular_verb_forms() -> None:
+    assert _fixed("Er faellt, sie traegt, es haengt, er waechst und enthaelt.\n") == (
+        "Er fällt, sie trägt, es hängt, er wächst und enthält.\n"
+    )
+
+
+def test_covers_umlaut_plurals() -> None:
+    assert _fixed("Haeuser, Staedte, Laender, Baeume, Voegel und Kraefte.\n") == (
+        "Häuser, Städte, Länder, Bäume, Vögel und Kräfte.\n"
+    )
+
+
+def test_covers_taet_nouns() -> None:
+    assert _fixed("Qualitaet, Realitaet, Universitaet und Prioritaet.\n") == (
+        "Qualität, Realität, Universität und Priorität.\n"
+    )
+
+
+def test_covers_adjective_inflections() -> None:
+    assert _fixed("Ein schoener Tag, die schoensten Tage, taegliche Uebung.\n") == (
+        "Ein schöner Tag, die schönsten Tage, tägliche Übung.\n"
+    )
+
+
+def test_ss_stays_ss_where_the_reform_wants_ss() -> None:
+    """lässt/wüsste/zuverlässig keep ss — listable and fully fixable."""
+    assert _fixed("Er laesst das, sie wuesste es, alles zuverlaessig.\n") == (
+        "Er lässt das, sie wüsste es, alles zuverlässig.\n"
+    )
+
+
+def test_covers_double_umlaut_words() -> None:
+    assert _fixed("Das ist ueberfluessig, sagt der Verkaeufer.\n") == (
+        "Das ist überflüssig, sagt der Verkäufer.\n"
+    )
+
+
+def test_covers_documented_real_world_leaks() -> None:
+    """The forms that actually leaked in real AI output on 2026-07-30
+    (docs-hygiene gate evidence): fuer, waehrend, Uebersicht, Aenderungen,
+    eroeffnet, gepruefte, zustaendig."""
+    assert _fixed(
+        "Die Uebersicht wurde waehrend der Pruefung eroeffnet, "
+        "die gepruefte Aenderung ist zustaendig vermerkt, fuer alle.\n"
+    ) == (
+        "Die Übersicht wurde während der Prüfung eröffnet, "
+        "die geprüfte Änderung ist zuständig vermerkt, für alle.\n"
+    )
+
+
+def test_word_list_invariants() -> None:
+    """Admission criteria, enforced: lowercase, whole words, at least one
+    digraph, umlautify changes every entry, and no entry contains a
+    digraph that survives umlautify (which would signal a diphthong)."""
+    from manuscript_tools.umlaut_words import UMLAUT_WORDS as WORDS
+
+    for w in WORDS:
+        assert w == w.lower(), w
+        assert w.isalpha(), w
+        assert any(d in w for d in ("ae", "oe", "ue")), w
+        fixed = umlautify(w)
+        assert fixed != w, w
+        assert not any(d in fixed for d in ("ae", "oe", "ue")), w
