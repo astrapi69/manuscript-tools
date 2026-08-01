@@ -187,7 +187,7 @@ No config = all defaults. `rules` merges with defaults (union). `disable` remove
 git clone https://github.com/astrapi69/manuscript-tools.git
 cd manuscript-tools
 make install-dev
-make ci          # lint + format check + 224 tests
+make ci          # lint + format check + 226 tests
 ```
 
 ## Documentation

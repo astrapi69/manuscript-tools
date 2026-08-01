@@ -349,6 +349,55 @@ def test_covers_documented_real_world_leaks() -> None:
     )
 
 
+def test_covers_downstream_evidence_words() -> None:
+    """The 29 forms contributed from a downstream project's own curated
+    substitute list: every one of them leaked into a shipped German UI
+    catalog or help page there, so each is real-world evidence rather
+    than a candidate derived from a corpus."""
+    pairs = {
+        "ausfuehren": "ausführen",
+        "benoetigen": "benötigen",
+        "benoetigt": "benötigt",
+        "bestaetige": "bestätige",
+        "druecke": "drücke",
+        "durchlaeufst": "durchläufst",
+        "durchlaeuft": "durchläuft",
+        "einfuegen": "einfügen",
+        "faehigkeiten": "fähigkeiten",
+        "fuege": "füge",
+        "fuegen": "fügen",
+        "fuegst": "fügst",
+        "gueltig": "gültig",
+        "loesche": "lösche",
+        "moechtest": "möchtest",
+        "pruefe": "prüfe",
+        "pruefst": "prüfst",
+        "spaetere": "spätere",
+        "spaeteren": "späteren",
+        "staerken": "stärken",
+        "uebernehmen": "übernehmen",
+        "ueberpruefen": "überprüfen",
+        "ueberspringen": "überspringen",
+        "uebersprungen": "übersprungen",
+        "uebertragen": "übertragen",
+        "ungueltig": "ungültig",
+        "unterstuetzen": "unterstützen",
+        "unterstuetzt": "unterstützt",
+        "waehle": "wähle",
+    }
+    for ascii_form, expected in pairs.items():
+        assert umlautify(ascii_form) == expected, ascii_form
+        assert _fixed(f"Zeile: {ascii_form}\n") == f"Zeile: {expected}\n"
+
+
+def test_rewrites_second_person_help_prose() -> None:
+    """Second-person forms (fuegst, pruefst, durchlaeufst) come from
+    help text that addresses the reader directly."""
+    assert _fixed("Du fuegst es ein, pruefst die Eingabe und durchlaeufst den Rest.\n") == (
+        "Du fügst es ein, prüfst die Eingabe und durchläufst den Rest.\n"
+    )
+
+
 def test_word_list_invariants() -> None:
     """Admission criteria, enforced: lowercase, whole words, at least one
     digraph, umlautify changes every entry, and no entry contains a
