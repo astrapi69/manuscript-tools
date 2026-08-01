@@ -187,7 +187,7 @@ Keine Konfiguration = alle Defaults. `rules` wird mit Defaults zusammengeführt 
 git clone https://github.com/astrapi69/manuscript-tools.git
 cd manuscript-tools
 make install-dev
-make ci          # Lint + Format-Check + 208 Tests
+make ci          # Lint + Format-Check + 224 Tests
 ```
 
 ## Dokumentation
