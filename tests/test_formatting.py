@@ -124,6 +124,74 @@ def test_fix_preserves_list_items() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Paired markers at a line boundary are not breaks (issue #15)
+# ---------------------------------------------------------------------------
+#
+# Pattern 2 used to report every line that starts with ** or *, and pattern 1
+# every line that ends with a span, as long as the neighbour was non-empty.
+# A marker is only orphaned when it has no partner on its own line.
+
+
+def test_paired_bold_at_line_start_is_clean() -> None:
+    """``**Titel:** Text`` closes on the same line; it is not a continuation."""
+    lines = ["Vorheriger Absatz.", "**Titel:** Die Formbare Ewigkeit", "Ein Satz danach."]
+    assert has_broken_formatting(lines, 1) == []
+
+
+def test_paired_bold_name_at_line_start_is_clean() -> None:
+    lines = ["Ueber den Autor", "**Asterios Raptis** ist Softwareentwickler.", "Mehr Text."]
+    assert has_broken_formatting(lines, 1) == []
+
+
+def test_paired_bold_at_line_end_is_clean() -> None:
+    """A span that opens and closes on the line ends with ``**`` legitimately."""
+    lines = ["Das ist **wichtig**", "und hier geht es weiter."]
+    assert has_broken_formatting(lines, 0) == []
+
+
+def test_paired_italic_at_line_boundaries_is_clean() -> None:
+    lines = ["Absatz.", "*Kursiv* am Anfang", "Das ist *wichtig*", "weiter im Text."]
+    assert has_broken_formatting(lines, 1) == []
+    assert has_broken_formatting(lines, 2) == []
+
+
+def test_marker_inside_inline_code_does_not_count() -> None:
+    """Asterisks in a code span are literal, not formatting."""
+    lines = ["Das Muster `**` steht fuer **fett**", "und so weiter."]
+    assert has_broken_formatting(lines, 0) == []
+
+
+def test_unpaired_bold_at_line_end_is_still_reported() -> None:
+    lines = ["Das ist wirklich **", "wichtig** hier"]
+    problems = has_broken_formatting(lines, 0)
+    assert len(problems) == 1
+    assert "**" in problems[0]
+
+
+def test_fix_keeps_paired_bold_at_line_start() -> None:
+    """ms-format must not merge ``**Titel:** ...`` into the previous line."""
+    text = "Vorheriger Absatz.\n**Titel:** Die Formbare Ewigkeit\nEin Satz danach.\n"
+    result, stats = fix_broken_formatting(text)
+    assert result == text
+    assert stats.total_fixes == 0
+
+
+def test_fix_keeps_paired_bold_at_line_end() -> None:
+    text = "Das ist **wichtig**\nund hier geht es weiter.\n"
+    result, stats = fix_broken_formatting(text)
+    assert result == text
+    assert stats.total_fixes == 0
+
+
+def test_fix_still_merges_a_genuine_bold_break() -> None:
+    text = "Das ist wirklich **\nwichtig** hier.\n"
+    result, stats = fix_broken_formatting(text)
+    assert result == "Das ist wirklich **wichtig** hier.\n"
+    assert stats.broken_bold == 1
+    assert stats.lines_fixed == 1
+
+
+# ---------------------------------------------------------------------------
 # fix_formatting_file - I/O
 # ---------------------------------------------------------------------------
 
