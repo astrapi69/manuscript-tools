@@ -39,6 +39,18 @@ def test_sanitize_text_strips_control_chars() -> None:
     assert "\x07" not in result
 
 
+def test_sanitize_text_keeps_german_quotation_marks() -> None:
+    """German quotation marks and the curly apostrophe survive sanitizing.
+
+    ftfy defaults to ``uncurl_quotes=True`` and turned „…“ (U+201E/U+201C),
+    ‚…‘ (U+201A/U+2018) and ’ (U+2019) into ASCII " and '. A sanitizer
+    that destroys the typography ms-quotes produces is a regression, not a fix
+    (issue #12).
+    """
+    text = "Er sagte \u201eHallo \u201aWelt\u2018, hier\u201c und ging\u2019s.\n"
+    assert sanitize_text(text) == text
+
+
 def test_sanitize_file_no_change(tmp_path: Path) -> None:
     f = tmp_path / "clean.md"
     f.write_text("Sauberer Text.\n", encoding="utf-8")
