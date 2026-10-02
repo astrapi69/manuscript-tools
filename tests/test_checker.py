@@ -207,6 +207,32 @@ def test_repeated_words_ignores_single_chars() -> None:
     assert len(violations) == 0
 
 
+def test_repeated_words_allows_relative_pronoun_plus_article() -> None:
+    """ ", die die Natur" is a relative pronoun followed by an article (issue #16)."""
+    text = (
+        "Leser, die die Natur lieben, und ein Prinzip, das das Universum durchdringt, "
+        "bis sie sie sah.\n"
+    )
+    violations = rule_no_repeated_words(text, Path("test.md"))
+    assert violations == []
+
+
+def test_repeated_words_still_flags_the_article_at_sentence_start() -> None:
+    """A capitalised first token is sentence-initial, so "Die die" is a slip."""
+    text = "Die die Katze jagt.\n"
+    violations = rule_no_repeated_words(text, Path("test.md"))
+    assert len(violations) == 1
+    assert "Die" in violations[0].message
+
+
+def test_repeated_words_still_flags_und_und() -> None:
+    """The exemption is a closed list; other doublings stay findings."""
+    text = "Kaffee und und Kuchen.\n"
+    violations = rule_no_repeated_words(text, Path("test.md"))
+    assert len(violations) == 1
+    assert "und" in violations[0].message
+
+
 # ---------------------------------------------------------------------------
 # rule_no_double_spaces
 # ---------------------------------------------------------------------------

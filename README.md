@@ -129,7 +129,7 @@ Or run the whole pipeline in one go: `ms-validate kapitel-01.md --fix`.
 
 `no-dashes`, `no-invisible-chars`, `no-repeated-words`, `no-double-spaces`, `non-german-quotes`, `broken-formatting`
 
-`no-dashes` reports both the en dash (U+2013) and the em dash (U+2014) by default; `dashes-allow = ["en"]` in the configuration lets one kind pass — the en dash is what `ms-dashes --to en` writes.
+`no-dashes` reports both the en dash (U+2013) and the em dash (U+2014) by default; `dashes-allow = ["en"]` in the configuration lets one kind pass — the en dash is what `ms-dashes --to en` writes. `no-repeated-words` skips the lowercase doubling of `der`, `die`, `das` and `sie` inside a sentence (relative pronoun followed by an article: „Leser, die die Natur lieben“); the same pair capitalised at a sentence start is still reported.
 
 **Prose** (with `--strict` or `ms-validate`):
 
@@ -190,7 +190,7 @@ No config = all defaults. `rules` merges with defaults (union). `disable` remove
 git clone https://github.com/astrapi69/manuscript-tools.git
 cd manuscript-tools
 make install-dev
-make ci          # lint + format check + 226 tests
+make ci          # lint + format check + 255 tests
 ```
 
 ## Documentation

@@ -296,12 +296,28 @@ def make_rule_ascii_umlauts(extra_words: Sequence[str] = ()) -> StyleRule:
 
 _REPEATED_WORD = re.compile(r"\b(\w{2,})\s+\1\b", re.IGNORECASE | re.UNICODE)
 
+#: Words whose doubling inside a sentence is regular German grammar: a
+#: relative pronoun followed by the article of the next noun ("Leser, die
+#: die Natur lieben", "ein Prinzip, das das Universum durchdringt") or a
+#: pronoun pair ("bis sie sie sah"). Only a lowercase first token is exempt;
+#: "Der der Hund" at the start of a sentence is still a slip.
+_REPEATED_WORD_ALLOWED = frozenset({"der", "die", "das", "sie"})
+
 
 def rule_no_repeated_words(text: str, path: Path) -> list[StyleViolation]:
-    """Flag immediately repeated words (e.g. 'der der', 'und und')."""
+    """Flag immediately repeated words (e.g. 'der der', 'und und').
+
+    The German relative pronoun plus article ("..., die die Natur") is
+    correct and skipped when the first token is lowercase, see
+    ``_REPEATED_WORD_ALLOWED``. Capitalised, the pair is sentence-initial
+    and reported as before.
+    """
     violations: list[StyleViolation] = []
     for lineno, line in enumerate(text.splitlines(), start=1):
         for m in _REPEATED_WORD.finditer(line):
+            first = m.group(1)
+            if first.islower() and first in _REPEATED_WORD_ALLOWED:
+                continue
             violations.append(
                 StyleViolation(
                     file=path,

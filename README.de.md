@@ -129,7 +129,7 @@ Oder alles in einem Durchlauf: `ms-validate kapitel-01.md --fix`.
 
 `no-dashes`, `no-invisible-chars`, `no-repeated-words`, `no-double-spaces`, `non-german-quotes`, `broken-formatting`
 
-`no-dashes` meldet standardmäßig Halbgeviertstrich (U+2013) und Geviertstrich (U+2014); `dashes-allow = ["en"]` in der Konfiguration lässt eine Sorte durch — den Halbgeviertstrich schreibt `ms-dashes --to en`.
+`no-dashes` meldet standardmäßig Halbgeviertstrich (U+2013) und Geviertstrich (U+2014); `dashes-allow = ["en"]` in der Konfiguration lässt eine Sorte durch — den Halbgeviertstrich schreibt `ms-dashes --to en`. `no-repeated-words` übergeht die kleingeschriebene Verdopplung von `der`, `die`, `das` und `sie` im Satzinneren (Relativpronomen plus Artikel: „Leser, die die Natur lieben“); dasselbe Paar großgeschrieben am Satzanfang wird weiterhin gemeldet.
 
 **Prosa** (mit `--strict` oder `ms-validate`):
 
@@ -190,7 +190,7 @@ Keine Konfiguration = alle Defaults. `rules` wird mit Defaults zusammengeführt 
 git clone https://github.com/astrapi69/manuscript-tools.git
 cd manuscript-tools
 make install-dev
-make ci          # Lint + Format-Check + 226 Tests
+make ci          # Lint + Format-Check + 255 Tests
 ```
 
 ## Dokumentation
