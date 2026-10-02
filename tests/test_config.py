@@ -1,5 +1,7 @@
 """Tests for manuscript_tools.config."""
 
+from pathlib import Path
+
 from manuscript_tools.config import resolve_config
 
 # ---------------------------------------------------------------------------
@@ -175,6 +177,52 @@ def test_filler_words_extra_invalid() -> None:
 
 
 # ---------------------------------------------------------------------------
+# dashes-allow
+# ---------------------------------------------------------------------------
+
+
+def test_dashes_allow_set() -> None:
+    cfg = resolve_config(raw_config={"dashes-allow": ["en"]})
+    assert cfg.dashes_allow == ["en"]
+    assert cfg.warnings == []
+
+
+def test_dashes_allow_both_kinds() -> None:
+    cfg = resolve_config(raw_config={"dashes-allow": ["en", "em"]})
+    assert cfg.dashes_allow == ["en", "em"]
+
+
+def test_dashes_allow_unknown_kind_warns() -> None:
+    cfg = resolve_config(raw_config={"dashes-allow": ["hyphen"]})
+    assert cfg.dashes_allow == []
+    assert len(cfg.warnings) == 1
+    assert "dashes-allow" in cfg.warnings[0]
+
+
+def test_dashes_allow_wrong_type_warns() -> None:
+    cfg = resolve_config(raw_config={"dashes-allow": "en"})
+    assert cfg.dashes_allow == []
+    assert len(cfg.warnings) == 1
+
+
+def test_dashes_allow_swaps_the_no_dashes_rule() -> None:
+    """The active no-dashes rule lets the allowed kind pass (issue #14)."""
+    cfg = resolve_config(raw_config={"dashes-allow": ["en"]})
+    idx = cfg.active_rule_names.index("no-dashes")
+    rule = cfg.active_rules[idx]
+    assert rule("Seiten 10\u201320 sind gemeint.\n", Path("test.md")) == []
+    violations = rule("Text \u2014 mit Geviertstrich.\n", Path("test.md"))
+    assert len(violations) == 1
+    assert violations[0].rule == "no-dashes"
+
+
+def test_dashes_allow_without_the_rule_is_harmless() -> None:
+    cfg = resolve_config(raw_config={"dashes-allow": ["en"], "disable": ["no-dashes"]})
+    assert "no-dashes" not in cfg.active_rule_names
+    assert cfg.dashes_allow == ["en"]
+
+
+# ---------------------------------------------------------------------------
 # Rule override (factories)
 # ---------------------------------------------------------------------------
 
@@ -226,6 +274,7 @@ def test_no_config_file() -> None:
     assert cfg.max_sentence_words == 40
     assert cfg.flesch_target == (0.0, 100.0)
     assert cfg.filler_words_extra == []
+    assert cfg.dashes_allow == []
     assert cfg.warnings == []
 
 

@@ -129,6 +129,8 @@ Or run the whole pipeline in one go: `ms-validate kapitel-01.md --fix`.
 
 `no-dashes`, `no-invisible-chars`, `no-repeated-words`, `no-double-spaces`, `non-german-quotes`, `broken-formatting`
 
+`no-dashes` reports both the en dash (U+2013) and the em dash (U+2014) by default; `dashes-allow = ["en"]` in the configuration lets one kind pass — the en dash is what `ms-dashes --to en` writes.
+
 **Prose** (with `--strict` or `ms-validate`):
 
 `max-sentence-length`, `filler-words-de`, `passive-voice-de`
@@ -166,6 +168,7 @@ max-sentence-words = 30                  # default: 40
 flesch-target = [65, 80]                 # warn if outside range
 filler-words-extra = ["definitiv", "absolut"]  # extend filler list
 umlaut-words-extra = ["oekologie"]       # extend the ascii-umlauts word list
+dashes-allow = ["en"]                    # let the German en dash pass
 ```
 
 No config = all defaults. `rules` merges with defaults (union). `disable` removes from the active set and takes precedence over `rules`. See the [Wiki](https://github.com/astrapi69/manuscript-tools/wiki/09-Konfiguration) for details.

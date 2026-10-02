@@ -20,23 +20,63 @@ StyleRule = Callable[[str, Path], list[StyleViolation]]
 # Built-in rules
 # ---------------------------------------------------------------------------
 
-_DASH_PATTERN = re.compile(r"[\u2013\u2014]")
+#: The two dashes the no-dashes rule knows, keyed by the name the
+#: ``dashes-allow`` option uses, with the character and the German label.
+#: German typography sets the pause dash as a spaced en dash, English as an
+#: em dash, so a manuscript may legitimately want exactly one of them.
+DASH_KINDS: dict[str, tuple[str, str]] = {
+    "en": ("\u2013", "Halbgeviertstrich (en-dash)"),
+    "em": ("\u2014", "Geviertstrich (em-dash)"),
+}
 
 
-def rule_no_dashes(text: str, path: Path) -> list[StyleViolation]:
-    """Flag en-dashes and em-dashes."""
+def _no_dash_violations(text: str, path: Path, kinds: Sequence[str]) -> list[StyleViolation]:
+    """One violation per line that contains any of the dash *kinds*.
+
+    The message names every kind found on the line, so the author sees
+    which character to replace.
+    """
+    reported = [DASH_KINDS[kind] for kind in kinds]
     violations: list[StyleViolation] = []
     for lineno, line in enumerate(text.splitlines(), start=1):
-        if _DASH_PATTERN.search(line):
+        found = [label for char, label in reported if char in line]
+        if found:
             violations.append(
                 StyleViolation(
                     file=path,
                     rule="no-dashes",
-                    message="Gedankenstrich (en/em-dash) gefunden",
+                    message=" und ".join(found) + " gefunden",
                     line=lineno,
                 )
             )
     return violations
+
+
+def rule_no_dashes(text: str, path: Path) -> list[StyleViolation]:
+    """Flag en dashes and em dashes.
+
+    Both kinds are reported. ``make_rule_no_dashes`` (or ``dashes-allow``
+    in the configuration) builds a variant that lets one kind pass.
+    """
+    return _no_dash_violations(text, path, tuple(DASH_KINDS))
+
+
+def make_rule_no_dashes(allow: Sequence[str] = ()) -> StyleRule:
+    """Create a no-dashes rule that lets the dash kinds in *allow* pass.
+
+    *allow* may contain ``"en"`` and/or ``"em"``; anything else raises
+    ``ValueError``. With an empty *allow* the rule behaves like
+    ``rule_no_dashes``.
+    """
+    unknown = sorted(set(allow) - set(DASH_KINDS))
+    if unknown:
+        raise ValueError(f"unknown dash kind(s): {', '.join(unknown)}; expected 'en' or 'em'")
+    kinds = tuple(kind for kind in DASH_KINDS if kind not in allow)
+
+    def _rule(text: str, path: Path) -> list[StyleViolation]:
+        return _no_dash_violations(text, path, kinds)
+
+    return _rule
 
 
 def rule_no_invisible_chars(text: str, path: Path) -> list[StyleViolation]:
