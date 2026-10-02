@@ -473,17 +473,22 @@ def rule_passive_voice_de(text: str, path: Path) -> list[StyleViolation]:
 # Double spaces
 # ---------------------------------------------------------------------------
 
-_DOUBLE_SPACE = re.compile(r"(?<!\n) {2,}(?!\n)")
+_DOUBLE_SPACE = re.compile(r" {2,}")
 
 
 def rule_no_double_spaces(text: str, path: Path) -> list[StyleViolation]:
-    """Flag double or multiple spaces within lines."""
+    """Flag runs of two or more spaces inside a line.
+
+    Only the interior of the line counts. Leading spaces are indentation
+    (nested list items, hanging indents) and two trailing spaces are a
+    Markdown hard line break; both are structure, not a typing slip.
+    """
     violations: list[StyleViolation] = []
     for lineno, line in enumerate(text.splitlines(), start=1):
         stripped = line.strip()
         if stripped.startswith("```"):
             continue
-        if _DOUBLE_SPACE.search(line):
+        if _DOUBLE_SPACE.search(stripped):
             violations.append(
                 StyleViolation(
                     file=path,

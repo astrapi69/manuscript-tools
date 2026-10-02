@@ -169,6 +169,28 @@ def test_double_spaces_clean() -> None:
     assert len(violations) == 0
 
 
+def test_double_spaces_ignores_indentation() -> None:
+    """Leading spaces are structure: a nested list item is not a typo."""
+    text = "- Punkt\n    - Unterpunkt\n"
+    violations = rule_no_double_spaces(text, Path("test.md"))
+    assert len(violations) == 0
+
+
+def test_double_spaces_ignores_markdown_hard_line_break() -> None:
+    """Two trailing spaces are a Markdown hard line break (issue #13)."""
+    text = "Satz mit Umbruch  \nNaechste Zeile.\n"
+    violations = rule_no_double_spaces(text, Path("test.md"))
+    assert len(violations) == 0
+
+
+def test_double_spaces_still_flags_interior_runs() -> None:
+    """Indentation and a hard break on the same line hide nothing."""
+    text = "    Hier sind  zwei Leerzeichen.  \n"
+    violations = rule_no_double_spaces(text, Path("test.md"))
+    assert len(violations) == 1
+    assert violations[0].line == 1
+
+
 # ---------------------------------------------------------------------------
 # rule_max_sentence_length
 # ---------------------------------------------------------------------------
