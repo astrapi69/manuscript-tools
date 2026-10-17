@@ -2,13 +2,16 @@
 
 from pathlib import Path
 
+import pytest
 from manuscript_tools.checker import (
     ALL_RULES_DE,
     CORE_RULES,
     check_file,
+    make_rule_no_dashes,
     rule_faked_dashes,
     rule_filler_words_de,
     rule_max_sentence_length,
+    rule_no_dashes,
     rule_no_double_spaces,
     rule_no_invisible_chars,
     rule_no_repeated_words,
@@ -43,6 +46,59 @@ def test_no_dashes_en_dash(tmp_path: Path) -> None:
     report = check_file(f)
     assert not report.ok
     assert report.violations[0].line == 1
+
+
+def test_no_dashes_message_names_the_kind() -> None:
+    """The author has to see WHICH dash was found to fix it."""
+    en = rule_no_dashes("Seiten 10\u201320\n", Path("t.md"))
+    em = rule_no_dashes("Text \u2014 hier\n", Path("t.md"))
+    assert en[0].message == "Halbgeviertstrich (en-dash) gefunden"
+    assert em[0].message == "Geviertstrich (em-dash) gefunden"
+
+
+def test_no_dashes_both_kinds_on_one_line_is_one_violation() -> None:
+    violations = rule_no_dashes("10\u201320 \u2014 beides\n", Path("t.md"))
+    assert len(violations) == 1
+    assert "en-dash" in violations[0].message
+    assert "em-dash" in violations[0].message
+
+
+def test_make_rule_no_dashes_default_matches_rule_no_dashes() -> None:
+    text = "10\u201320 \u2014 beides\nkein Strich\n\u2013\n"
+    default = make_rule_no_dashes()(text, Path("t.md"))
+    plain = rule_no_dashes(text, Path("t.md"))
+    assert [(v.line, v.message) for v in default] == [(v.line, v.message) for v in plain]
+
+
+def test_make_rule_no_dashes_allow_en() -> None:
+    """German typography: the spaced en dash is the Gedankenstrich (issue #14).
+
+    It is also what ``ms-dashes --to en`` writes, so a project using that
+    fixer needs no-dashes to let the en dash pass and keep the em dash out.
+    """
+    rule = make_rule_no_dashes(["en"])
+    assert rule("Er kam \u2013 wie immer \u2013 zu spaet.\n", Path("t.md")) == []
+    violations = rule("Er kam \u2014 wie immer \u2014 zu spaet.\n", Path("t.md"))
+    assert len(violations) == 1
+    assert violations[0].message == "Geviertstrich (em-dash) gefunden"
+
+
+def test_make_rule_no_dashes_allow_em() -> None:
+    rule = make_rule_no_dashes(["em"])
+    assert rule("Er kam \u2014 wie immer \u2014 zu spaet.\n", Path("t.md")) == []
+    violations = rule("Seiten 10\u201320\n", Path("t.md"))
+    assert len(violations) == 1
+    assert violations[0].message == "Halbgeviertstrich (en-dash) gefunden"
+
+
+def test_make_rule_no_dashes_allow_both_reports_nothing() -> None:
+    rule = make_rule_no_dashes(["en", "em"])
+    assert rule("10\u201320 \u2014 beides\n", Path("t.md")) == []
+
+
+def test_make_rule_no_dashes_rejects_unknown_kind() -> None:
+    with pytest.raises(ValueError, match="hyphen"):
+        make_rule_no_dashes(["hyphen"])
 
 
 # ---------------------------------------------------------------------------
@@ -151,6 +207,32 @@ def test_repeated_words_ignores_single_chars() -> None:
     assert len(violations) == 0
 
 
+def test_repeated_words_allows_relative_pronoun_plus_article() -> None:
+    """ ", die die Natur" is a relative pronoun followed by an article (issue #16)."""
+    text = (
+        "Leser, die die Natur lieben, und ein Prinzip, das das Universum durchdringt, "
+        "bis sie sie sah.\n"
+    )
+    violations = rule_no_repeated_words(text, Path("test.md"))
+    assert violations == []
+
+
+def test_repeated_words_still_flags_the_article_at_sentence_start() -> None:
+    """A capitalised first token is sentence-initial, so "Die die" is a slip."""
+    text = "Die die Katze jagt.\n"
+    violations = rule_no_repeated_words(text, Path("test.md"))
+    assert len(violations) == 1
+    assert "Die" in violations[0].message
+
+
+def test_repeated_words_still_flags_und_und() -> None:
+    """The exemption is a closed list; other doublings stay findings."""
+    text = "Kaffee und und Kuchen.\n"
+    violations = rule_no_repeated_words(text, Path("test.md"))
+    assert len(violations) == 1
+    assert "und" in violations[0].message
+
+
 # ---------------------------------------------------------------------------
 # rule_no_double_spaces
 # ---------------------------------------------------------------------------
@@ -167,6 +249,28 @@ def test_double_spaces_clean() -> None:
     text = "Hier ist alles korrekt.\n"
     violations = rule_no_double_spaces(text, Path("test.md"))
     assert len(violations) == 0
+
+
+def test_double_spaces_ignores_indentation() -> None:
+    """Leading spaces are structure: a nested list item is not a typo."""
+    text = "- Punkt\n    - Unterpunkt\n"
+    violations = rule_no_double_spaces(text, Path("test.md"))
+    assert len(violations) == 0
+
+
+def test_double_spaces_ignores_markdown_hard_line_break() -> None:
+    """Two trailing spaces are a Markdown hard line break (issue #13)."""
+    text = "Satz mit Umbruch  \nNaechste Zeile.\n"
+    violations = rule_no_double_spaces(text, Path("test.md"))
+    assert len(violations) == 0
+
+
+def test_double_spaces_still_flags_interior_runs() -> None:
+    """Indentation and a hard break on the same line hide nothing."""
+    text = "    Hier sind  zwei Leerzeichen.  \n"
+    violations = rule_no_double_spaces(text, Path("test.md"))
+    assert len(violations) == 1
+    assert violations[0].line == 1
 
 
 # ---------------------------------------------------------------------------

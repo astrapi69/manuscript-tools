@@ -34,8 +34,10 @@ _REPLACE_MAP = REPLACE_MAP
 
 def sanitize_text(text: str) -> str:
     """Apply all sanitization steps to *text* and return the cleaned version."""
-    # 1) Fix mojibake
-    text = ftfy.fix_text(text)
+    # 1) Fix mojibake. ftfy's default ``uncurl_quotes=True`` would turn the
+    #    German quotation marks „…“ and ‚…‘ (and the apostrophe ’)
+    #    into ASCII " and ', which is exactly what ms-quotes then has to undo.
+    text = ftfy.fix_text(text, uncurl_quotes=False)
 
     # 2) NFKC normalization
     text = unicodedata.normalize("NFKC", text)

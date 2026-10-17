@@ -129,6 +129,8 @@ Oder alles in einem Durchlauf: `ms-validate kapitel-01.md --fix`.
 
 `no-dashes`, `no-invisible-chars`, `no-repeated-words`, `no-double-spaces`, `non-german-quotes`, `broken-formatting`
 
+`no-dashes` meldet standardmäßig Halbgeviertstrich (U+2013) und Geviertstrich (U+2014); `dashes-allow = ["en"]` in der Konfiguration lässt eine Sorte durch — den Halbgeviertstrich schreibt `ms-dashes --to en`. `no-repeated-words` übergeht die kleingeschriebene Verdopplung von `der`, `die`, `das` und `sie` im Satzinneren (Relativpronomen plus Artikel: „Leser, die die Natur lieben“); dasselbe Paar großgeschrieben am Satzanfang wird weiterhin gemeldet.
+
 **Prosa** (mit `--strict` oder `ms-validate`):
 
 `max-sentence-length`, `filler-words-de`, `passive-voice-de`
@@ -166,6 +168,7 @@ max-sentence-words = 30                  # Default: 40
 flesch-target = [65, 80]                 # warnen wenn ausserhalb
 filler-words-extra = ["definitiv", "absolut"]  # Füllwortliste erweitern
 umlaut-words-extra = ["oekologie"]       # ascii-umlauts-Wortliste erweitern
+dashes-allow = ["en"]                    # Halbgeviertstrich als Gedankenstrich erlauben
 ```
 
 Keine Konfiguration = alle Defaults. `rules` wird mit Defaults zusammengeführt (Union). `disable` entfernt aus dem aktiven Set und hat Vorrang vor `rules`. Details im [Wiki](https://github.com/astrapi69/manuscript-tools/wiki/09-Konfiguration).
@@ -187,7 +190,7 @@ Keine Konfiguration = alle Defaults. `rules` wird mit Defaults zusammengeführt 
 git clone https://github.com/astrapi69/manuscript-tools.git
 cd manuscript-tools
 make install-dev
-make ci          # Lint + Format-Check + 226 Tests
+make ci          # Lint + Format-Check + 255 Tests
 ```
 
 ## Dokumentation

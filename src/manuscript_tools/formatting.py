@@ -46,6 +46,30 @@ _UNMATCHED_ITALIC_OPEN = re.compile(r"(?<!\*)\*(?!\*)(?!.*(?<!\*)\*(?!\*))")
 _CLOSE_BOLD_START = re.compile(r"^(.*?)\*\*")
 _CLOSE_ITALIC_START = re.compile(r"^(.*?)(?<!\*)\*(?!\*)")
 
+# A code span on one line. Asterisks inside it are literal, not markers.
+# Deliberately a local copy of the checker's pattern: checker imports this
+# module, so importing back from it would invert the layering.
+_INLINE_CODE = re.compile(r"`[^`]*`")
+
+# A leading list bullet "* " is structure, not an italic marker.
+_LIST_BULLET = re.compile(r"^\s*\*\s+")
+
+# Every marker token on a line; "**" comes first so it is never read as two "*".
+_MARKER_TOKEN = re.compile(r"\*\*|\*")
+
+
+def _marker_is_unpaired(line: str, marker: str) -> bool:
+    """Tell whether the ``**`` or ``*`` *marker* has no partner on *line*.
+
+    Code spans are removed and a leading list bullet ignored, then the
+    ``**`` and lone ``*`` tokens are counted; a kind is unpaired when its
+    count is odd. ``**Titel:** Text`` and ``Das ist **wichtig**`` start or
+    end with a marker but are paired, so they are not line-wrap breaks.
+    """
+    cleaned = _LIST_BULLET.sub("", _INLINE_CODE.sub("", line), count=1)
+    tokens = _MARKER_TOKEN.findall(cleaned)
+    return tokens.count(marker) % 2 == 1
+
 
 # ---------------------------------------------------------------------------
 # Statistics
@@ -104,14 +128,16 @@ def has_broken_formatting(lines: list[str], line_idx: int) -> list[str]:
     ):
         is_bold = stripped.endswith("**")
         marker = "**" if is_bold else "*"
-        problems.append(f"Oeffnendes {marker} am Zeilenende (Formatierung gebrochen)")
+        if _marker_is_unpaired(stripped, marker):
+            problems.append(f"Oeffnendes {marker} am Zeilenende (Formatierung gebrochen)")
 
     # Pattern 2: Line starts with orphaned ** or * that closes from previous line
     if line_idx > 0 and _ORPHAN_CLOSE_START.match(trimmed) and not is_list_marker:
         match = _ORPHAN_CLOSE_START.match(trimmed)
         if match and match.group(0).strip() in ("*", "**"):
             marker = match.group(0).strip()
-            problems.append(f"Schliessendes {marker} am Zeilenanfang (Formatierung gebrochen)")
+            if _marker_is_unpaired(trimmed, marker):
+                problems.append(f"Schliessendes {marker} am Zeilenanfang (Formatierung gebrochen)")
 
     return problems
 
@@ -186,9 +212,10 @@ def fix_broken_formatting(text: str) -> tuple[str, FormatStats]:
 
             if not skip_next:
                 is_bold = stripped.endswith("**")
+                marker = "**" if is_bold else "*"
                 close_pattern = _CLOSE_BOLD_START if is_bold else _CLOSE_ITALIC_START
 
-                if close_pattern.search(next_line):
+                if _marker_is_unpaired(stripped, marker) and close_pattern.search(next_line):
                     merged = stripped + next_line
                     result.append(merged)
 
@@ -208,18 +235,19 @@ def fix_broken_formatting(text: str) -> tuple[str, FormatStats]:
                 marker = match.group(0).strip()
                 is_bold = marker == "**"
 
-                prev = result[-1].rstrip()
-                merged = prev + trimmed
-                result[-1] = merged
+                if _marker_is_unpaired(trimmed, marker):
+                    prev = result[-1].rstrip()
+                    merged = prev + trimmed
+                    result[-1] = merged
 
-                if is_bold:
-                    stats.broken_bold += 1
-                else:
-                    stats.broken_italic += 1
-                stats.lines_fixed += 1
+                    if is_bold:
+                        stats.broken_bold += 1
+                    else:
+                        stats.broken_italic += 1
+                    stats.lines_fixed += 1
 
-                i += 1
-                continue
+                    i += 1
+                    continue
 
         result.append(line)
         i += 1

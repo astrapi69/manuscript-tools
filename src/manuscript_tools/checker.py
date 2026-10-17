@@ -20,23 +20,63 @@ StyleRule = Callable[[str, Path], list[StyleViolation]]
 # Built-in rules
 # ---------------------------------------------------------------------------
 
-_DASH_PATTERN = re.compile(r"[\u2013\u2014]")
+#: The two dashes the no-dashes rule knows, keyed by the name the
+#: ``dashes-allow`` option uses, with the character and the German label.
+#: German typography sets the pause dash as a spaced en dash, English as an
+#: em dash, so a manuscript may legitimately want exactly one of them.
+DASH_KINDS: dict[str, tuple[str, str]] = {
+    "en": ("\u2013", "Halbgeviertstrich (en-dash)"),
+    "em": ("\u2014", "Geviertstrich (em-dash)"),
+}
 
 
-def rule_no_dashes(text: str, path: Path) -> list[StyleViolation]:
-    """Flag en-dashes and em-dashes."""
+def _no_dash_violations(text: str, path: Path, kinds: Sequence[str]) -> list[StyleViolation]:
+    """One violation per line that contains any of the dash *kinds*.
+
+    The message names every kind found on the line, so the author sees
+    which character to replace.
+    """
+    reported = [DASH_KINDS[kind] for kind in kinds]
     violations: list[StyleViolation] = []
     for lineno, line in enumerate(text.splitlines(), start=1):
-        if _DASH_PATTERN.search(line):
+        found = [label for char, label in reported if char in line]
+        if found:
             violations.append(
                 StyleViolation(
                     file=path,
                     rule="no-dashes",
-                    message="Gedankenstrich (en/em-dash) gefunden",
+                    message=" und ".join(found) + " gefunden",
                     line=lineno,
                 )
             )
     return violations
+
+
+def rule_no_dashes(text: str, path: Path) -> list[StyleViolation]:
+    """Flag en dashes and em dashes.
+
+    Both kinds are reported. ``make_rule_no_dashes`` (or ``dashes-allow``
+    in the configuration) builds a variant that lets one kind pass.
+    """
+    return _no_dash_violations(text, path, tuple(DASH_KINDS))
+
+
+def make_rule_no_dashes(allow: Sequence[str] = ()) -> StyleRule:
+    """Create a no-dashes rule that lets the dash kinds in *allow* pass.
+
+    *allow* may contain ``"en"`` and/or ``"em"``; anything else raises
+    ``ValueError``. With an empty *allow* the rule behaves like
+    ``rule_no_dashes``.
+    """
+    unknown = sorted(set(allow) - set(DASH_KINDS))
+    if unknown:
+        raise ValueError(f"unknown dash kind(s): {', '.join(unknown)}; expected 'en' or 'em'")
+    kinds = tuple(kind for kind in DASH_KINDS if kind not in allow)
+
+    def _rule(text: str, path: Path) -> list[StyleViolation]:
+        return _no_dash_violations(text, path, kinds)
+
+    return _rule
 
 
 def rule_no_invisible_chars(text: str, path: Path) -> list[StyleViolation]:
@@ -256,12 +296,28 @@ def make_rule_ascii_umlauts(extra_words: Sequence[str] = ()) -> StyleRule:
 
 _REPEATED_WORD = re.compile(r"\b(\w{2,})\s+\1\b", re.IGNORECASE | re.UNICODE)
 
+#: Words whose doubling inside a sentence is regular German grammar: a
+#: relative pronoun followed by the article of the next noun ("Leser, die
+#: die Natur lieben", "ein Prinzip, das das Universum durchdringt") or a
+#: pronoun pair ("bis sie sie sah"). Only a lowercase first token is exempt;
+#: "Der der Hund" at the start of a sentence is still a slip.
+_REPEATED_WORD_ALLOWED = frozenset({"der", "die", "das", "sie"})
+
 
 def rule_no_repeated_words(text: str, path: Path) -> list[StyleViolation]:
-    """Flag immediately repeated words (e.g. 'der der', 'und und')."""
+    """Flag immediately repeated words (e.g. 'der der', 'und und').
+
+    The German relative pronoun plus article ("..., die die Natur") is
+    correct and skipped when the first token is lowercase, see
+    ``_REPEATED_WORD_ALLOWED``. Capitalised, the pair is sentence-initial
+    and reported as before.
+    """
     violations: list[StyleViolation] = []
     for lineno, line in enumerate(text.splitlines(), start=1):
         for m in _REPEATED_WORD.finditer(line):
+            first = m.group(1)
+            if first.islower() and first in _REPEATED_WORD_ALLOWED:
+                continue
             violations.append(
                 StyleViolation(
                     file=path,
@@ -473,17 +529,22 @@ def rule_passive_voice_de(text: str, path: Path) -> list[StyleViolation]:
 # Double spaces
 # ---------------------------------------------------------------------------
 
-_DOUBLE_SPACE = re.compile(r"(?<!\n) {2,}(?!\n)")
+_DOUBLE_SPACE = re.compile(r" {2,}")
 
 
 def rule_no_double_spaces(text: str, path: Path) -> list[StyleViolation]:
-    """Flag double or multiple spaces within lines."""
+    """Flag runs of two or more spaces inside a line.
+
+    Only the interior of the line counts. Leading spaces are indentation
+    (nested list items, hanging indents) and two trailing spaces are a
+    Markdown hard line break; both are structure, not a typing slip.
+    """
     violations: list[StyleViolation] = []
     for lineno, line in enumerate(text.splitlines(), start=1):
         stripped = line.strip()
         if stripped.startswith("```"):
             continue
-        if _DOUBLE_SPACE.search(line):
+        if _DOUBLE_SPACE.search(stripped):
             violations.append(
                 StyleViolation(
                     file=path,

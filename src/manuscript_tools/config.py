@@ -18,6 +18,7 @@ Example configuration:
     max-sentence-words = 30
     flesch-target = [60, 80]
     filler-words-extra = ["definitiv", "absolut", "total"]
+    dashes-allow = ["en"]
 """
 
 from __future__ import annotations
@@ -29,11 +30,13 @@ from pathlib import Path
 from manuscript_tools.checker import (
     ALL_RULE_NAMES,
     CORE_RULE_NAMES,
+    DASH_KINDS,
     RULE_REGISTRY,
     StyleRule,
     make_rule_ascii_umlauts,
     make_rule_filler_words_de,
     make_rule_max_sentence_length,
+    make_rule_no_dashes,
     resolve_rules,
 )
 
@@ -52,6 +55,7 @@ class ManuscriptConfig:
     flesch_target: tuple[float, float] = (0.0, 100.0)
     filler_words_extra: list[str] = field(default_factory=list)
     umlaut_words_extra: list[str] = field(default_factory=list)
+    dashes_allow: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
 
@@ -214,6 +218,16 @@ def resolve_config(
                 f"erhalten: {val!r}. Ignoriert."
             )
 
+    if "dashes-allow" in raw:
+        val = raw["dashes-allow"]
+        if isinstance(val, list) and all(isinstance(v, str) and v in DASH_KINDS for v in val):
+            config.dashes_allow = list(val)
+        else:
+            config.warnings.append(
+                f"'dashes-allow' muss eine Liste aus 'en' und/oder 'em' sein, "
+                f"erhalten: {val!r}. Ignoriert."
+            )
+
     # --- Step 6: Override rules with configured variants ---
     if config.max_sentence_words != 40 and "max-sentence-length" in active_names:
         custom_rule = make_rule_max_sentence_length(config.max_sentence_words)
@@ -228,6 +242,11 @@ def resolve_config(
     if config.umlaut_words_extra and "ascii-umlauts" in active_names:
         custom_rule = make_rule_ascii_umlauts(config.umlaut_words_extra)
         idx = active_names.index("ascii-umlauts")
+        config.active_rules[idx] = custom_rule
+
+    if config.dashes_allow and "no-dashes" in active_names:
+        custom_rule = make_rule_no_dashes(config.dashes_allow)
+        idx = active_names.index("no-dashes")
         config.active_rules[idx] = custom_rule
 
     return config
